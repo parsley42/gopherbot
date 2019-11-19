@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 // if help is more than tooLong lines long, send a private message
@@ -31,7 +32,7 @@ func init() {
 
 /* builtin plugins, like help */
 
-func help(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func help(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	if command == "init" {
 		return // ignore init
 	}
@@ -183,7 +184,7 @@ func help(r *Robot, command string, args ...string) (retval TaskRetVal) {
 	return
 }
 
-func dmadmin(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func dmadmin(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	if command == "init" {
 		return // ignore init
 	}
@@ -244,7 +245,7 @@ func dmadmin(r *Robot, command string, args ...string) (retval TaskRetVal) {
 			datumkey = paramKey
 		}
 		tok, _, ret := checkoutDatum(datumkey, &secrets, true)
-		if ret != Ok {
+		if ret != b.Ok {
 			r.Log(Error, "Error checking out brainParams: %s", ret)
 			r.Say("Ugh, I'm not able to store that memory right now, check with an administrator")
 			return
@@ -278,7 +279,7 @@ func dmadmin(r *Robot, command string, args ...string) (retval TaskRetVal) {
 			secrets.RepositoryParams[nsname][name] = value
 		}
 		ret = updateDatum(datumkey, tok, secrets)
-		if ret == Ok {
+		if ret == b.Ok {
 			r.Say("Stored")
 		} else {
 			r.Log(Error, "Problem storing parameter: %s", ret)
@@ -372,7 +373,7 @@ func dmadmin(r *Robot, command string, args ...string) (retval TaskRetVal) {
 	return
 }
 
-func encryptcfg(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func encryptcfg(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	switch command {
 	case "init":
 		return
@@ -402,7 +403,7 @@ var rightback = []string{
 	"You won't even have time to miss me...",
 }
 
-func logging(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func logging(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	switch command {
 	case "init":
 		return
@@ -431,7 +432,7 @@ func logging(r *Robot, command string, args ...string) (retval TaskRetVal) {
 	return
 }
 
-func admin(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func admin(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	if command == "init" {
 		return // ignore init
 	}

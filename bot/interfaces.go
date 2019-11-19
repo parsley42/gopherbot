@@ -1,5 +1,7 @@
 package bot
 
+import b "github.com/lnxjedi/gopherbot/models"
+
 /* Gather all the interfaces in once place. Structs should be defined
    close the their methods. */
 
@@ -61,23 +63,23 @@ type Connector interface {
 	// The connector should expect "username" or "<userid>".
 	// The current attributes are:
 	// email, realName, firstName, lastName, phone, sms, connections
-	GetProtocolUserAttribute(user, attr string) (value string, ret RetVal)
+	GetProtocolUserAttribute(user, attr string) (value string, ret b.RetVal)
 	// MessageHeard tells the connector that the user should be notified that
 	// the message has been heard and is being responded to. The connector
 	// can then e.g. send a typing notifier.
 	MessageHeard(user, channel string)
 	// JoinChannel joins a channel given it's human-readable name, e.g. "general"
-	JoinChannel(c string) RetVal
+	JoinChannel(c string) b.RetVal
 	// SendProtocolChannelMessage sends a message to a channel
-	SendProtocolChannelMessage(channelname, msg string, format MessageFormat) RetVal
+	SendProtocolChannelMessage(channelname, msg string, format MessageFormat) b.RetVal
 	// SendProtocolUserChannelMessage directs a message to a user in a channel
 	// This method also supplies what the bot engine believes to be the username.
-	SendProtocolUserChannelMessage(userid, username, channelname, msg string, format MessageFormat) RetVal
+	SendProtocolUserChannelMessage(userid, username, channelname, msg string, format MessageFormat) b.RetVal
 	// SendProtocolUserMessage sends a direct message to a user if supported.
 	// The value of user will be either "<userid>", the connector internal
 	// userID in brackets, or "username", a string name the connector associates
 	// with the user.
-	SendProtocolUserMessage(user, msg string, format MessageFormat) RetVal
+	SendProtocolUserMessage(user, msg string, format MessageFormat) b.RetVal
 	// The Run method starts the main loop and takes a channel for stopping it.
 	Run(stopchannel <-chan struct{})
 }

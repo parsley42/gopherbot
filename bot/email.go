@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jordan-wright/email"
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 type botMailer struct {
@@ -21,41 +22,41 @@ type botMailer struct {
 // For the robot, this can be conifigured in gopherbot.conf, Email attribute.
 // For the user, this should be provided by the chat protocol, or in
 // gopherbot.conf.
-// It returns an error and RetVal != 0 if there's a problem.
-func (r *Robot) Email(subject string, messageBody *bytes.Buffer, html ...bool) (ret RetVal) {
+// It returns an error and b.RetVal != 0 if there's a problem.
+func (r *Robot) Email(subject string, messageBody *bytes.Buffer, html ...bool) (ret b.RetVal) {
 	mailAttr := r.GetSenderAttribute("email")
-	if mailAttr.RetVal != Ok {
-		return NoUserEmail
+	if mailAttr.RetVal != b.Ok {
+		return b.NoUserEmail
 	}
 	return r.realEmail(subject, mailAttr.Attribute, messageBody, html...)
 }
 
 // EmailUser is a method for sending an email to a specified user. See Email.
-func (r *Robot) EmailUser(user, subject string, messageBody *bytes.Buffer, html ...bool) (ret RetVal) {
+func (r *Robot) EmailUser(user, subject string, messageBody *bytes.Buffer, html ...bool) (ret b.RetVal) {
 	mailAttr := r.GetUserAttribute(user, "email")
-	if mailAttr.RetVal != Ok {
-		return NoUserEmail
+	if mailAttr.RetVal != b.Ok {
+		return b.NoUserEmail
 	}
 	return r.realEmail(subject, mailAttr.Attribute, messageBody, html...)
 }
 
 // EmailAddress is a method for sending an email to a specified address. See Email.
-func (r *Robot) EmailAddress(address, subject string, messageBody *bytes.Buffer, html ...bool) (ret RetVal) {
+func (r *Robot) EmailAddress(address, subject string, messageBody *bytes.Buffer, html ...bool) (ret b.RetVal) {
 	return r.realEmail(subject, address, messageBody, html...)
 }
 
-func (r *Robot) realEmail(subject, mailTo string, messageBody *bytes.Buffer, html ...bool) (ret RetVal) {
+func (r *Robot) realEmail(subject, mailTo string, messageBody *bytes.Buffer, html ...bool) (ret b.RetVal) {
 	var mailFrom, botName string
 
 	mailAttr := r.GetBotAttribute("email")
-	if mailAttr.RetVal != Ok || mailAttr.Attribute == "" {
+	if mailAttr.RetVal != b.Ok || mailAttr.Attribute == "" {
 		Log(Error, "Email send requested but robot has no Email set in config")
-		return NoBotEmail
+		return b.NoBotEmail
 	}
 	mailFrom = mailAttr.Attribute
 	// We can live without a full name
 	botAttr := r.GetBotAttribute("fullName")
-	if botAttr.RetVal != Ok {
+	if botAttr.RetVal != b.Ok {
 		botName = "Gopherbot"
 	} else {
 		botName = botAttr.Attribute
@@ -95,7 +96,7 @@ func (r *Robot) realEmail(subject, mailTo string, messageBody *bytes.Buffer, htm
 	if err != nil {
 		err = fmt.Errorf("Sending email: %v", err)
 		Log(Error, err.Error())
-		return MailError
+		return b.MailError
 	}
-	return Ok
+	return b.Ok
 }

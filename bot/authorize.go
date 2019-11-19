@@ -1,10 +1,12 @@
 package bot
 
+import b "github.com/lnxjedi/gopherbot/models"
+
 const technicalAuthError = "Sorry, authorization failed due to a problem with the authorization plugin"
 const configAuthError = "Sorry, authorization failed due to a configuration error"
 
 // Check for a configured Authorizer and check authorization
-func (c *botContext) checkAuthorization(t interface{}, command string, args ...string) (retval TaskRetVal) {
+func (c *botContext) checkAuthorization(t interface{}, command string, args ...string) (retval b.TaskRetVal) {
 	task, plugin, _ := getTask(t)
 	r := c.makeRobot()
 	isPlugin := plugin != nil
@@ -14,9 +16,9 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 			if task.Authorizer != "" {
 				Log(Audit, "Plugin '%s' configured an authorizer, but has no commands requiring authorization", task.name)
 				r.Say(configAuthError)
-				return ConfigurationError
+				return b.ConfigurationError
 			}
-			return Success
+			return b.Success
 		} else if !plugin.AuthorizeAllCommands {
 			authRequired := false
 			for _, i := range plugin.AuthorizedCommands {
@@ -26,14 +28,14 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 				}
 			}
 			if !authRequired {
-				return Success
+				return b.Success
 			}
 		}
 	} else {
 		// Jobs don't have commands; only check authorization if an Authorizer
 		// is explicitly set.
 		if len(task.Authorizer) == 0 {
-			return Success
+			return b.Success
 		}
 	}
 	botCfg.RLock()
@@ -43,7 +45,7 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 		Log(Audit, "Plugin '%s' requires authorization for command '%s', but no authorizer configured", task.name, command)
 		r.Say(configAuthError)
 		emit(AuthNoRunMisconfigured)
-		return ConfigurationError
+		return b.ConfigurationError
 	}
 	authorizer := defaultAuthorizer
 	if task.Authorizer != "" {
@@ -51,42 +53,42 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 	}
 	authTask := c.tasks.getTaskByName(authorizer)
 	if authTask == nil {
-		return ConfigurationError
+		return b.ConfigurationError
 	}
 	_, authPlug, _ := getTask(authTask)
 	if authPlug != nil {
 		args = append([]string{task.name, task.AuthRequire, command}, args...)
 		_, authRet := c.callTask(authPlug, "authorize", args...)
-		if authRet == Success {
+		if authRet == b.Success {
 			Log(Audit, "Authorization succeeded by authorizer '%s' for user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, c.User, command, task.name, c.Channel, task.AuthRequire)
 			emit(AuthRanSuccess)
-			return Success
+			return b.Success
 		}
-		if authRet == Fail {
+		if authRet == b.Fail {
 			Log(Audit, "Authorization FAILED by authorizer '%s' for user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, c.User, command, task.name, c.Channel, task.AuthRequire)
 			r.Say("Sorry, you're not authorized for that command")
 			emit(AuthRanFail)
-			return Fail
+			return b.Fail
 		}
-		if authRet == MechanismFail {
+		if authRet == b.MechanismFail {
 			Log(Audit, "Auth plugin '%s' mechanism failure while authenticating user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, c.User, command, task.name, c.Channel, task.AuthRequire)
 			r.Say(technicalAuthError)
 			emit(AuthRanMechanismFailed)
-			return MechanismFail
+			return b.MechanismFail
 		}
-		if authRet == Normal {
-			Log(Audit, "Auth plugin '%s' returned 'Normal' (%d) instead of 'Success' (%d), failing auth in '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, Normal, Success, c.User, command, task.name, c.Channel, task.AuthRequire)
+		if authRet == b.Normal {
+			Log(Audit, "Auth plugin '%s' returned 'Normal' (%d) instead of 'Success' (%d), failing auth in '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, b.Normal, b.Success, c.User, command, task.name, c.Channel, task.AuthRequire)
 			r.Say(technicalAuthError)
 			emit(AuthRanFailNormal)
-			return MechanismFail
+			return b.MechanismFail
 		}
 		Log(Audit, "Auth plugin '%s' exit code %s, failing auth while authenticating user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, authRet, c.User, command, task.name, c.Channel, task.AuthRequire)
 		r.Say(technicalAuthError)
 		emit(AuthRanFailOther)
-		return MechanismFail
+		return b.MechanismFail
 	}
 	Log(Audit, "Auth plugin '%s' not found while authenticating user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", task.Authorizer, c.User, command, task.name, c.Channel, task.AuthRequire)
 	r.Say(technicalAuthError)
 	emit(AuthNoRunNotFound)
-	return ConfigurationError
+	return b.ConfigurationError
 }

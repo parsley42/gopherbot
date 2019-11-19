@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 /* Technical notes on the waiter implementation
@@ -116,60 +118,60 @@ func init() {
 //	SimpleString - Characters commonly found in most english sentences, doesn't
 //    include special characters like @, {, etc.
 //	YesNo
-func (r *Robot) PromptForReply(regexID string, prompt string) (string, RetVal) {
+func (r *Robot) PromptForReply(regexID string, prompt string) (string, b.RetVal) {
 	var rep string
-	var ret RetVal
+	var ret b.RetVal
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, r.User, r.Channel, prompt)
-		if ret == RetryPrompt {
+		if ret == b.RetryPrompt {
 			continue
 		}
 		return rep, ret
 	}
-	if ret == RetryPrompt {
-		return rep, Interrupted
+	if ret == b.RetryPrompt {
+		return rep, b.Interrupted
 	}
 	return rep, ret
 }
 
 // PromptUserForReply is identical to PromptForReply, but prompts a specific
 // user with a DM.
-func (r *Robot) PromptUserForReply(regexID string, user string, prompt string) (string, RetVal) {
+func (r *Robot) PromptUserForReply(regexID string, user string, prompt string) (string, b.RetVal) {
 	var rep string
-	var ret RetVal
+	var ret b.RetVal
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, user, "", prompt)
-		if ret == RetryPrompt {
+		if ret == b.RetryPrompt {
 			continue
 		}
 		return rep, ret
 	}
-	if ret == RetryPrompt {
-		return rep, Interrupted
+	if ret == b.RetryPrompt {
+		return rep, b.Interrupted
 	}
 	return rep, ret
 }
 
 // PromptUserChannelForReply is identical to PromptForReply, but prompts a
 // specific user in a given channel.
-func (r *Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, RetVal) {
+func (r *Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, b.RetVal) {
 	var rep string
-	var ret RetVal
+	var ret b.RetVal
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, user, channel, prompt)
-		if ret == RetryPrompt {
+		if ret == b.RetryPrompt {
 			continue
 		}
 		return rep, ret
 	}
-	if ret == RetryPrompt {
-		return rep, Interrupted
+	if ret == b.RetryPrompt {
+		return rep, b.Interrupted
 	}
 	return rep, ret
 }
 
 // promptInternal can return 'RetryPrompt'
-func (r *Robot) promptInternal(regexID string, user string, channel string, prompt string) (string, RetVal) {
+func (r *Robot) promptInternal(regexID string, user string, channel string, prompt string) (string, b.RetVal) {
 	matcher := replyMatcher{
 		user:    user,
 		channel: channel,
@@ -198,7 +200,7 @@ func (r *Robot) promptInternal(regexID string, user string, channel string, prom
 	}
 	if rep.re == nil {
 		Log(Error, "Unable to resolve a reply matcher for plugin %s, regexID %s", task.name, regexID)
-		return "", MatcherNotFound
+		return "", b.MatcherNotFound
 	}
 	rep.replyChannel = make(chan reply)
 
@@ -220,13 +222,13 @@ func (r *Robot) promptInternal(regexID string, user string, channel string, prom
 		} else {
 			puser = user
 		}
-		var ret RetVal
+		var ret b.RetVal
 		if channel == "" {
 			ret = botCfg.SendProtocolUserMessage(puser, prompt, r.Format)
 		} else {
 			ret = botCfg.SendProtocolUserChannelMessage(puser, user, channel, prompt, r.Format)
 		}
-		if ret != Ok {
+		if ret != b.Ok {
 			replies.Unlock()
 			return "", ret
 		}
@@ -254,7 +256,7 @@ func (r *Robot) promptInternal(regexID string, user string, channel string, prom
 				}
 			}
 			// matched=false, timedOut=true
-			return "", TimeoutExpired
+			return "", b.TimeoutExpired
 		}
 		// race: we got a reply at the timeout deadline, and lost the race
 		// to delete the entry, so we read the reply as if the timeout hadn't
@@ -264,20 +266,20 @@ func (r *Robot) promptInternal(regexID string, user string, channel string, prom
 	case replied = <-rep.replyChannel:
 	}
 	if replied.disposition == replyInterrupted {
-		return "", Interrupted
+		return "", b.Interrupted
 	}
 	if replied.disposition == retryPrompt {
-		return "", RetryPrompt
+		return "", b.RetryPrompt
 	}
 	// Note: the replies.m[] entry is deleted in handleMessage
 	if !replied.matched {
 		if replied.rep == "=" {
-			return "", UseDefaultValue
+			return "", b.UseDefaultValue
 		}
 		if replied.rep == "-" {
-			return "", Interrupted
+			return "", b.Interrupted
 		}
-		return "", ReplyNotMatched
+		return "", b.ReplyNotMatched
 	}
-	return replied.rep, Ok
+	return replied.rep, b.Ok
 }

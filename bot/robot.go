@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 // MessageFormat indicates how the connector should display the content of
@@ -86,7 +88,7 @@ func (r *Robot) GetSecret(name string) string {
 
 	var secret []byte
 	var exists bool
-	var ret RetVal
+	var ret b.RetVal
 
 	c := r.getContext()
 	if !c.secrets.retrieved {
@@ -94,7 +96,7 @@ func (r *Robot) GetSecret(name string) string {
 		// pipeline
 		c.secrets.retrieved = true
 		_, exists, ret = checkoutDatum(secretKey, &c.secrets, false)
-		if ret != Ok {
+		if ret != b.Ok {
 			r.Log(Error, "Error retrieving secrets in GetSecret: %s", ret)
 			return ""
 		}
@@ -215,7 +217,7 @@ func (r *Robot) Elevate(immediate bool) bool {
 	c := r.getContext()
 	task, _, _ := getTask(c.currentTask)
 	retval := c.elevate(task, immediate)
-	if retval == Success {
+	if retval == b.Success {
 		return true
 	}
 	return false
@@ -273,7 +275,7 @@ func (r *Robot) GetBotAttribute(a string) *AttrRet {
 	a = strings.ToLower(a)
 	botCfg.RLock()
 	defer botCfg.RUnlock()
-	ret := Ok
+	ret := b.Ok
 	var attr string
 	switch a {
 	case "name":
@@ -289,7 +291,7 @@ func (r *Robot) GetBotAttribute(a string) *AttrRet {
 	case "protocol":
 		attr = r.Protocol.String()
 	default:
-		ret = AttributeNotFound
+		ret = b.AttributeNotFound
 	}
 	return &AttrRet{attr, ret}
 }
@@ -329,29 +331,29 @@ and call GetTaskConfig with a double-pointer:
 
 ... And voila! *pConf is populated with the contents from the configured Config: stanza
 */
-func (r *Robot) GetTaskConfig(dptr interface{}) RetVal {
+func (r *Robot) GetTaskConfig(dptr interface{}) b.RetVal {
 	c := r.getContext()
 	task, _, _ := getTask(c.currentTask)
 	if task.config == nil {
 		Log(Debug, "Task \"%s\" called GetTaskConfig, but no config was found.", task.name)
-		return NoConfigFound
+		return b.NoConfigFound
 	}
 	tp := reflect.ValueOf(dptr)
 	if tp.Kind() != reflect.Ptr {
 		Log(Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
-		return InvalidDblPtr
+		return b.InvalidDblPtr
 	}
 	p := reflect.Indirect(tp)
 	if p.Kind() != reflect.Ptr {
 		Log(Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
-		return InvalidDblPtr
+		return b.InvalidDblPtr
 	}
 	if p.Type() != reflect.ValueOf(task.config).Type() {
 		Log(Debug, "Task \"%s\" called GetTaskConfig with an invalid double-pointer", task.name)
-		return InvalidCfgStruct
+		return b.InvalidCfgStruct
 	}
 	p.Set(reflect.ValueOf(task.config))
-	return Ok
+	return b.Ok
 }
 
 // Log logs a message to the robot's log file (or stderr) if the level

@@ -1,12 +1,14 @@
 package bot
 
+import b "github.com/lnxjedi/gopherbot/models"
+
 const technicalElevError = "Sorry, elevation failed due to a problem with the elevation service"
 const configElevError = "Sorry, elevation failed due to a configuration error"
 
 // Elevator plugins provide an elevate method for checking if the user
 // can run a privileged command.
 
-func (c *botContext) elevate(task *BotTask, immediate bool) (retval TaskRetVal) {
+func (c *botContext) elevate(task *BotTask, immediate bool) (retval b.TaskRetVal) {
 	r := c.makeRobot()
 	botCfg.RLock()
 	defaultElevator := botCfg.defaultElevator
@@ -15,7 +17,7 @@ func (c *botContext) elevate(task *BotTask, immediate bool) (retval TaskRetVal) 
 		Log(Audit, "Task '%s' requires elevation, but no elevator configured", task.name)
 		r.Say(configElevError)
 		emit(ElevNoRunMisconfigured)
-		return ConfigurationError
+		return b.ConfigurationError
 	}
 	elevator := defaultElevator
 	if task.Elevator != "" {
@@ -28,42 +30,42 @@ func (c *botContext) elevate(task *BotTask, immediate bool) (retval TaskRetVal) 
 			immedString = "false"
 		}
 		_, elevRet := c.callTask(ePlug, "elevate", immedString)
-		if elevRet == Success {
+		if elevRet == b.Success {
 			Log(Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
 			emit(ElevRanSuccess)
-			return Success
+			return b.Success
 		}
-		if elevRet == Fail {
+		if elevRet == b.Fail {
 			Log(Audit, "Elevation FAILED by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
 			r.Say("Sorry, this command requires elevation")
 			emit(ElevRanFail)
-			return Fail
+			return b.Fail
 		}
-		if elevRet == MechanismFail {
+		if elevRet == b.MechanismFail {
 			Log(Audit, "Elevator plugin '%s' mechanism failure while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
 			r.Say(technicalElevError)
 			emit(ElevRanMechanismFailed)
-			return MechanismFail
+			return b.MechanismFail
 		}
-		if elevRet == Normal {
+		if elevRet == b.Normal {
 			Log(Audit, "Elevator plugin '%s' returned 'Normal' (0) instead of 'Success' (1), failing elevation in '%s' for task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
 			r.Say(technicalElevError)
 			emit(ElevRanFailNormal)
-			return MechanismFail
+			return b.MechanismFail
 		}
 		Log(Audit, "Elevator plugin '%s' exit code %d while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, retval, c.User, task.name, c.Channel)
 		r.Say(technicalElevError)
 		emit(ElevRanFailOther)
-		return MechanismFail
+		return b.MechanismFail
 	}
 	Log(Audit, "Elevator plugin '%s' not found while elevating user '%s' for task '%s' in channel '%s'", task.Elevator, c.User, task.name, c.Channel)
 	r.Say(technicalElevError)
 	emit(ElevNoRunNotFound)
-	return ConfigurationError
+	return b.ConfigurationError
 }
 
 // Check for a configured Elevator and check elevation
-func (c *botContext) checkElevation(t interface{}, command string) (retval TaskRetVal, required bool) {
+func (c *botContext) checkElevation(t interface{}, command string) (retval b.TaskRetVal, required bool) {
 	task, plugin, _ := getTask(t)
 	isPlugin := plugin != nil
 	immediate := false
@@ -91,12 +93,12 @@ func (c *botContext) checkElevation(t interface{}, command string) (retval TaskR
 		}
 	}
 	if !elevationRequired {
-		return Success, false
+		return b.Success, false
 	}
 	retval = c.elevate(task, immediate)
-	if retval == Success {
-		return Success, true
+	if retval == b.Success {
+		return b.Success, true
 	}
 	Log(Error, "Elevation failed for task '%s', command: '%s'", task.name, command)
-	return Fail, true
+	return b.Fail, true
 }

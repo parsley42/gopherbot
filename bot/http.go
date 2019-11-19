@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 type jsonFunction struct {
@@ -134,7 +136,7 @@ type extns struct {
 // the plugin author is ok with ignoring the RetVal.
 type AttrRet struct {
 	Attribute string
-	RetVal
+	b.RetVal
 }
 
 func (bar *AttrRet) String() string {
@@ -261,7 +263,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var (
 		attr  *AttrRet
 		reply string
-		ret   RetVal
+		ret   b.RetVal
 	)
 	switch f.FuncName {
 	case "CheckAdmin":
@@ -276,7 +278,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if !getArgs(rw, &f.FuncArgs, &ts) {
 			return
 		}
-		var ret RetVal
+		var ret b.RetVal
 		switch f.FuncName {
 		case "AddJob":
 			ret = r.AddJob(ts.Name, ts.CmdArgs...)
@@ -298,7 +300,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if !getArgs(rw, &f.FuncArgs, &cc) {
 			return
 		}
-		var ret RetVal
+		var ret b.RetVal
 		switch f.FuncName {
 		case "AddCommand":
 			ret = r.AddCommand(cc.Plugin, cc.Command)
@@ -367,7 +369,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 		r.CheckinDatum(m.Key, m.Token)
-		sendReturn(rw, &botretvalresponse{int(Ok)})
+		sendReturn(rw, &botretvalresponse{int(b.Ok)})
 		return
 	case "UpdateDatum":
 		var m memory
@@ -392,7 +394,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			m.Value = decode(m.Value)
 		}
 		r.Remember(m.Key, m.Value)
-		sendReturn(rw, &botretvalresponse{int(Ok)})
+		sendReturn(rw, &botretvalresponse{int(b.Ok)})
 		return
 	case "Recall":
 		var m shorttermrecollection
@@ -451,7 +453,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			lm.Message = decode(lm.Message)
 		}
 		r.Log(l, lm.Message)
-		sendReturn(rw, &botretvalresponse{int(Ok)})
+		sendReturn(rw, &botretvalresponse{int(b.Ok)})
 		return
 	case "SendChannelMessage":
 		var cm channelmessage

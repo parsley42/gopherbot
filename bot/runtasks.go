@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 var envPassThrough = []string{
@@ -20,7 +22,7 @@ var envPassThrough = []string{
 // Called from dispatch: checkPluginMatchersAndRun,
 // jobcommands: checkJobMatchersAndRun or ScheduledTask,
 // runPipeline.
-func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipelineType, command string, args ...string) (ret TaskRetVal) {
+func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipelineType, command string, args ...string) (ret b.TaskRetVal) {
 	task, _, job := getTask(t)
 	privCheck(fmt.Sprintf("task %s / %s", task.name, command))
 	isJob := job != nil
@@ -73,7 +75,7 @@ func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipe
 		}
 		key := histPrefix + c.jobName
 		tok, _, ret := checkoutDatum(key, &jh, true)
-		if ret != Ok {
+		if ret != b.Ok {
 			Log(Error, "Error checking out '%s', no history will be remembered for '%s'", key, c.pipeName)
 		} else {
 			var start time.Time
@@ -95,7 +97,7 @@ func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipe
 				jh.Histories = jh.Histories[l-rememberRuns:]
 			}
 			ret := updateDatum(key, tok, jh)
-			if ret != Ok {
+			if ret != b.Ok {
 				Log(Error, "Error updating '%s', no history will be remembered for '%s'", key, c.pipeName)
 			} else {
 				if job.HistoryLogs > 0 && c.history != nil {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 // GetRepoData returns the contents of configPath/conf/repodata.yaml, or an
@@ -72,7 +74,7 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 	jk := histPrefix + c.jobName
 	var pjh jobHistory
 	jtok, _, jret := checkoutDatum(jk, &pjh, true)
-	if jret != Ok {
+	if jret != b.Ok {
 		r.Log(Error, "Problem checking out '%s', unable to record extended namespace '%s'", jk, ext)
 	} else {
 		xn := make(map[string]bool)
@@ -87,7 +89,7 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 			i++
 		}
 		ret := updateDatum(jk, jtok, pjh)
-		if ret != Ok {
+		if ret != b.Ok {
 			r.Log(Error, "Problem updating '%s', unable to record extended namespace '%s'", jk, ext)
 		}
 	}
@@ -107,7 +109,7 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 	}
 	key := histPrefix + c.jobName + ":" + ext
 	tok, _, ret := checkoutDatum(key, &jh, true)
-	if ret != Ok {
+	if ret != b.Ok {
 		Log(Error, "Error checking out '%s', no history will be remembered for '%s'", key, c.pipeName)
 	} else {
 		var start time.Time
@@ -129,7 +131,7 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 			jh.Histories = jh.Histories[l-rememberRuns:]
 		}
 		ret := updateDatum(key, tok, jh)
-		if ret != Ok {
+		if ret != b.Ok {
 			Log(Error, "Error updating '%s', no history will be remembered for '%s'", key, c.pipeName)
 		} else {
 			if nh > 0 && c.history != nil {
@@ -144,12 +146,12 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 					c.logger = pipeHistory
 					c.logger.Section("new log", fmt.Sprintf("Extended log created by job '%s'", c.jobName))
 					r.Log(Debug, "Started new history for job '%s' with namespace '%s'", c.jobName, ext)
-                    r.Channel = c.jobChannel
-                    var link string
-                    if url, ok := c.history.GetHistoryURL(hspec, hist.LogIndex); ok {
-                        link = fmt.Sprintf(" (link: %s)", url)
-                    }
-                    r.Say(fmt.Sprintf("Job '%s' extended namespace: %s:%s, run %d%s", c.jobName, c.jobName, ext, c.runIndex, link))
+					r.Channel = c.jobChannel
+					var link string
+					if url, ok := c.history.GetHistoryURL(hspec, hist.LogIndex); ok {
+						link = fmt.Sprintf(" (link: %s)", url)
+					}
+					r.Say(fmt.Sprintf("Job '%s' extended namespace: %s:%s, run %d%s", c.jobName, c.jobName, ext, c.runIndex, link))
 				}
 			} else {
 				if c.history == nil {
@@ -215,48 +217,48 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 
 // pipeTask does all the real work of adding tasks to pipelines or spawning
 // new tasks.
-func (r *Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, args ...string) RetVal {
+func (r *Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, args ...string) b.RetVal {
 	c := r.getContext()
 	if c.stage != primaryTasks {
 		task, _, _ := getTask(c.currentTask)
 		r.Log(Error, "request to modify pipeline outside of initial pipeline in task '%s'", task.name)
-		return InvalidStage
+		return b.InvalidStage
 	}
 	t := c.tasks.getTaskByName(name)
 	if t == nil {
 		task, _, _ := getTask(c.currentTask)
 		r.Log(Error, "task '%s' not found updating pipeline from task '%s'", name, task.name)
-		return TaskNotFound
+		return b.TaskNotFound
 	}
 	task, plugin, job := getTask(t)
 	isPlugin := plugin != nil
 	isJob := job != nil
 	if task.Disabled {
 		r.Log(Error, "attempt to add disabled task '%s' to pipeline", name)
-		return TaskDisabled
+		return b.TaskDisabled
 	}
 	if ptype == typePlugin && !isPlugin {
 		r.Log(Error, "adding command to pipeline - not a plugin: %s", name)
-		return InvalidTaskType
+		return b.InvalidTaskType
 	}
 	if ptype == typeJob && !isJob {
 		r.Log(Error, "adding job to pipeline - not a job: %s", name)
-		return InvalidTaskType
+		return b.InvalidTaskType
 	}
 	if ptype == typeTask && (isJob || isPlugin) {
 		r.Log(Error, "adding task to pipeline - not a task: %s", name)
-		return InvalidTaskType
+		return b.InvalidTaskType
 	}
 	var command string
 	var cmdargs []string
 	if isPlugin {
 		if len(args) == 0 {
 			r.Log(Error, "added plugin '%s' to pipeline with no command", name)
-			return MissingArguments
+			return b.MissingArguments
 		}
 		if len(args[0]) == 0 {
 			r.Log(Error, "added plugin '%s' to pipeline with no command", name)
-			return MissingArguments
+			return b.MissingArguments
 		}
 		cmsg := args[0]
 		c.debugT(t, fmt.Sprintf("Checking %d command matchers against pipe command: '%s'", len(plugin.CommandMatchers), cmsg), false)
@@ -277,7 +279,7 @@ func (r *Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, 
 		}
 		if !matched {
 			r.Log(Error, "Command '%s' didn't match any CommandMatchers while adding plugin '%s' to pipeline", cmsg, name)
-			return CommandNotMatched
+			return b.CommandNotMatched
 		}
 	} else {
 		command = "run"
@@ -303,14 +305,14 @@ func (r *Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, 
 		sb := c.clone()
 		go sb.startPipeline(nil, t, spawnedTask, command, args...)
 	}
-	return Ok
+	return b.Ok
 }
 
 // SpawnJob creates a new botContext in a new goroutine to run a
 // job. It's primary use is for CI/CD applications where a single
 // triggered job may want to spawn several jobs when e.g. a dependency for
 // multiple projects is updated.
-func (r *Robot) SpawnJob(name string, args ...string) RetVal {
+func (r *Robot) SpawnJob(name string, args ...string) b.RetVal {
 	return r.pipeTask(flavorSpawn, typeJob, name, args...)
 }
 
@@ -320,7 +322,7 @@ func (r *Robot) SpawnJob(name string, args ...string) RetVal {
 // and uses AddTask to generate a pipeline. When the task is a plugin, cmdargs
 // should be a command followed by arguments. For jobs, cmdargs are just
 // arguments passed to the job.
-func (r *Robot) AddTask(name string, args ...string) RetVal {
+func (r *Robot) AddTask(name string, args ...string) b.RetVal {
 	return r.pipeTask(flavorAdd, typeTask, name, args...)
 }
 
@@ -330,39 +332,39 @@ func (r *Robot) AddTask(name string, args ...string) RetVal {
 // the pipeline failed.
 // Note that unlike other tasks, final tasks are run in reverse of the order
 // they're added.
-func (r *Robot) FinalTask(name string, args ...string) RetVal {
+func (r *Robot) FinalTask(name string, args ...string) b.RetVal {
 	return r.pipeTask(flavorFinal, typeTask, name, args...)
 }
 
 // FailTask adds a task that runs only if the pipeline fails. This can be used
 // to e.g. notify a user / channel on failure.
-func (r *Robot) FailTask(name string, args ...string) RetVal {
+func (r *Robot) FailTask(name string, args ...string) b.RetVal {
 	return r.pipeTask(flavorFail, typeTask, name, args...)
 }
 
 // AddJob puts another job in the queue for the pipeline. The added job
 // will run in a new separate context, and when it completes the current
 // pipeline will resume if the job succeeded.
-func (r *Robot) AddJob(name string, args ...string) RetVal {
+func (r *Robot) AddJob(name string, args ...string) b.RetVal {
 	return r.pipeTask(flavorAdd, typeJob, name, args...)
 }
 
 // AddCommand adds a plugin command to the pipeline. The command string
 // argument should match a CommandMatcher for the given plugin.
-func (r *Robot) AddCommand(plugname, command string) RetVal {
+func (r *Robot) AddCommand(plugname, command string) b.RetVal {
 	return r.pipeTask(flavorAdd, typePlugin, plugname, command)
 }
 
 // FinalCommand adds a plugin command that always runs when a pipeline
 // ends, for e.g. emailing the job history. The command string
 // argument should match a CommandMatcher for the given plugin.
-func (r *Robot) FinalCommand(plugname, command string) RetVal {
+func (r *Robot) FinalCommand(plugname, command string) b.RetVal {
 	return r.pipeTask(flavorFinal, typePlugin, plugname, command)
 }
 
 // FailCommand adds a plugin command that runs whenever a pipeline fails,
 // for e.g. emailing the job history. The command string
 // argument should match a CommandMatcher for the given plugin.
-func (r *Robot) FailCommand(plugname, command string) RetVal {
+func (r *Robot) FailCommand(plugname, command string) b.RetVal {
 	return r.pipeTask(flavorFail, typePlugin, plugname, command)
 }

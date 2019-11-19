@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 type getCfgReturn struct {
@@ -61,11 +63,11 @@ func getExtDefCfgThread(cchan chan<- getCfgReturn, task *BotTask) {
 
 type taskReturn struct {
 	errString string
-	retval    TaskRetVal
+	retval    b.TaskRetVal
 }
 
 // callTask does the work of running a job, task or plugin with a command and arguments.
-func (c *botContext) callTask(t interface{}, command string, args ...string) (errString string, retval TaskRetVal) {
+func (c *botContext) callTask(t interface{}, command string, args ...string) (errString string, retval b.TaskRetVal) {
 	rc := make(chan taskReturn)
 	go c.callTaskThread(rc, t, command, args...)
 	ret := <-rc
@@ -74,7 +76,7 @@ func (c *botContext) callTask(t interface{}, command string, args ...string) (er
 
 func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
-	var retval TaskRetVal
+	var retval b.TaskRetVal
 
 	c.currentTask = t
 	r := c.makeRobot()
@@ -85,7 +87,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		msg := fmt.Sprintf("callTask failed on disabled task %s; reason: %s", task.name, task.reason)
 		Log(Error, msg)
 		c.debug(msg, false)
-		rchan <- taskReturn{msg, ConfigurationError}
+		rchan <- taskReturn{msg, b.ConfigurationError}
 		return
 	}
 	if c.logger != nil {
@@ -139,7 +141,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	taskPath, err = getTaskPath(task)
 	if err != nil {
 		emit(ExternalTaskBadPath)
-		rchan <- taskReturn{fmt.Sprintf("Error getting path for %s: %v", task.name, err), MechanismFail}
+		rchan <- taskReturn{fmt.Sprintf("Error getting path for %s: %v", task.name, err), b.MechanismFail}
 		return
 	}
 	var externalArgs []string
@@ -185,7 +187,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	if err != nil {
 		Log(Error, "Creating stderr pipe for external command '%s': %v", taskPath, err)
 		errString = fmt.Sprintf("There were errors calling external task '%s', you might want to ask an administrator to check the logs", task.name)
-		rchan <- taskReturn{errString, MechanismFail}
+		rchan <- taskReturn{errString, b.MechanismFail}
 		return
 	}
 	if c.logger == nil {
@@ -196,7 +198,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		if err != nil {
 			Log(Error, "Creating stdout pipe for external command '%s': %v", taskPath, err)
 			errString = fmt.Sprintf("There were errors calling external task '%s', you might want to ask an administrator to check the logs", task.name)
-			rchan <- taskReturn{errString, MechanismFail}
+			rchan <- taskReturn{errString, b.MechanismFail}
 			return
 		}
 	}
@@ -208,7 +210,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	if err = cmd.Start(); err != nil {
 		Log(Error, "Starting command '%s': %v", taskPath, err)
 		errString = fmt.Sprintf("There were errors calling external task '%s', you might want to ask an administrator to check the logs", task.name)
-		rchan <- taskReturn{errString, MechanismFail}
+		rchan <- taskReturn{errString, b.MechanismFail}
 		return
 	}
 	if command != "init" {
@@ -219,7 +221,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		if stdErrBytes, err = ioutil.ReadAll(stderr); err != nil {
 			Log(Error, "Reading from stderr for external command '%s': %v", taskPath, err)
 			errString = fmt.Sprintf("There were errors calling external task '%s', you might want to ask an administrator to check the logs", task.name)
-			rchan <- taskReturn{errString, MechanismFail}
+			rchan <- taskReturn{errString, b.MechanismFail}
 			return
 		}
 		stdErrString := string(stdErrBytes)
@@ -263,12 +265,12 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		}
 	}
 	if err = cmd.Wait(); err != nil {
-		retval = Fail
+		retval = b.Fail
 		success := false
 		if exitstatus, ok := err.(*exec.ExitError); ok {
 			if status, ok := exitstatus.Sys().(syscall.WaitStatus); ok {
-				retval = TaskRetVal(status.ExitStatus())
-				if retval == Success {
+				retval = b.TaskRetVal(status.ExitStatus())
+				if retval == b.Success {
 					success = true
 				}
 			}

@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 const runJobRegex = `run +job +(` + identifierRegex + `)(?: (.*))?`
@@ -140,10 +142,10 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 						var t int
 						for t = 1; t < 3; t++ {
 							arg, ret := r.PromptForReply(argspec.Label, fmt.Sprintf("What's the value for '%s'?", argspec.Label))
-							if ret == ReplyNotMatched {
+							if ret == b.ReplyNotMatched {
 								r.Say(fmt.Sprintf("That doesn't match the pattern for argument '%s'", argspec.Label))
 							} else {
-								if ret != Ok {
+								if ret != b.Ok {
 									r.Log(Warn, "failed getting arguments running job '%s': %s", jobName, ret)
 									r.Say(fmt.Sprintf("(not running job '%s')", jobName))
 									c.deregister()

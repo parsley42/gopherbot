@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	b "github.com/lnxjedi/gopherbot/models"
 )
 
 /*
@@ -28,7 +30,7 @@ func init() {
 	RegisterPlugin("builtin-jobcmd", PluginHandler{Handler: jobcommands})
 }
 
-func jobcommands(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func jobcommands(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	if command == "init" {
 		return
 	}
@@ -70,7 +72,7 @@ func jobcommands(r *Robot, command string, args ...string) (retval TaskRetVal) {
 	return
 }
 
-func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run int) (retval TaskRetVal) {
+func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run int) (retval b.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(Error, "Error getting history %d for task '%s': %v", run, spec, err)
@@ -80,16 +82,16 @@ func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run 
 	lr := io.LimitReader(f, maxMailBody)
 	body := new(bytes.Buffer)
 	body.Write([]byte("<pre>\n"))
-	b, rerr := ioutil.ReadAll(lr)
+	buff, rerr := ioutil.ReadAll(lr)
 	if rerr != nil {
 		r.Log(Error, "reading history #%d for '%s': %v", run, spec, rerr)
 		r.Reply("There was a problem reading the history, check with an administrator")
 		return
 	}
-	body.Write(b)
+	body.Write(buff)
 	body.Write([]byte("\n</pre>"))
 	subject := fmt.Sprintf("History for '%s', run %d", spec, run)
-	var ret RetVal
+	var ret b.RetVal
 	if len(user) > 0 {
 		ret = r.EmailUser(user, subject, body, true)
 	} else if len(address) > 0 {
@@ -97,7 +99,7 @@ func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run 
 	} else {
 		ret = r.Email(subject, body, true)
 	}
-	if ret != Ok {
+	if ret != b.Ok {
 		r.Reply("There was a problem emailing the history log, contact an administrator")
 		return
 	}
@@ -105,7 +107,7 @@ func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run 
 	return
 }
 
-func pagehistory(r *Robot, hp HistoryProvider, spec string, run int) (retval TaskRetVal) {
+func pagehistory(r *Robot, hp HistoryProvider, spec string, run int) (retval b.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(Error, "Error getting history %d for task '%s': %v", run, spec, err)
@@ -142,7 +144,7 @@ PageLoop:
 			break
 		}
 		rep, ret := r.PromptForReply("paging", "'c' to continue, 'q' to quit, or 'n' to skip to the next section")
-		if ret != Ok {
+		if ret != b.Ok {
 			r.Say("(quitting)")
 			break PageLoop
 		} else {
@@ -164,7 +166,7 @@ PageLoop:
 	return
 }
 
-func jobhistory(r *Robot, command string, args ...string) (retval TaskRetVal) {
+func jobhistory(r *Robot, command string, args ...string) (retval b.TaskRetVal) {
 	if command == "init" {
 		return
 	}
@@ -211,7 +213,7 @@ func jobhistory(r *Robot, command string, args ...string) (retval TaskRetVal) {
 		var jh jobHistory
 		key := histPrefix + histSpec
 		_, _, ret := checkoutDatum(key, &jh, false)
-		if ret != Ok {
+		if ret != b.Ok {
 			r.Say(fmt.Sprintf("No history found for '%s'", histSpec))
 			return
 		}
@@ -227,7 +229,7 @@ func jobhistory(r *Robot, command string, args ...string) (retval TaskRetVal) {
 				}
 				vr.Say(strings.Join(nsl, "\n"))
 				rep, ret := r.PromptForReply("selection", "Which namespace #?")
-				if ret != Ok {
+				if ret != b.Ok {
 					r.Say("(quitting history command)")
 					return
 				}
@@ -260,7 +262,7 @@ func jobhistory(r *Robot, command string, args ...string) (retval TaskRetVal) {
 			}
 			vr.Say(strings.Join(hl, "\n"))
 			rep, ret := r.PromptForReply("selection", "Which run #?")
-			if ret != Ok {
+			if ret != b.Ok {
 				r.Say("(quitting history command)")
 				return
 			}
@@ -312,12 +314,12 @@ func (c *botContext) jobSecurityCheck(t interface{}, command string) bool {
 			return false
 		}
 	}
-	if c.checkAuthorization(t, command) != Success {
+	if c.checkAuthorization(t, command) != b.Success {
 		return false
 	}
 	if !c.elevated {
 		eret, required := c.checkElevation(t, command)
-		if eret != Success {
+		if eret != b.Success {
 			return false
 		}
 		if required {
