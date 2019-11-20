@@ -6,23 +6,25 @@ import (
 	"regexp"
 
 	"github.com/lnxjedi/gopherbot/bot"
+	"github.com/lnxjedi/gopherbot/robot"
 	"github.com/nlopes/slack"
 )
 
 var idre = regexp.MustCompile(`slack id <@(.*)>`)
 
 // Define the handler function
-func slackutil(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal) {
+func slackutil(r robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	m := r.GetMessage()
 	switch command {
 	// This isn't really necessary
 	case "init":
 		// ignore
 	case "identify":
-		if r.Protocol != bot.Slack {
+		if m.Protocol != robot.Slack {
 			r.Say("Sorry, that only works with Slack")
 			return
 		}
-		sl := r.Incoming.MessageObject.(*slack.MessageEvent)
+		sl := m.Incoming.MessageObject.(*slack.MessageEvent)
 		sid := idre.FindStringSubmatch(sl.Text)[1]
 		r.Say(fmt.Sprintf("User %s has Slack internal ID %s", args[0], sid))
 	}
@@ -30,7 +32,7 @@ func slackutil(r *bot.Robot, command string, args ...string) (retval bot.TaskRet
 }
 
 func init() {
-	bot.RegisterPlugin("slackutil", bot.PluginHandler{
+	bot.RegisterPlugin("slackutil", robot.PluginHandler{
 		Handler: slackutil,
 	})
 }

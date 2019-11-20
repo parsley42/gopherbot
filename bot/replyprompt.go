@@ -118,7 +118,7 @@ func init() {
 //	SimpleString - Characters commonly found in most english sentences, doesn't
 //    include special characters like @, {, etc.
 //	YesNo
-func (r *Robot) PromptForReply(regexID string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptForReply(regexID string, prompt string) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
 	for i := 0; i < 3; i++ {
@@ -136,7 +136,7 @@ func (r *Robot) PromptForReply(regexID string, prompt string) (string, robot.Ret
 
 // PromptUserForReply is identical to PromptForReply, but prompts a specific
 // user with a DM.
-func (r *Robot) PromptUserForReply(regexID string, user string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptUserForReply(regexID string, user string, prompt string) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
 	for i := 0; i < 3; i++ {
@@ -154,7 +154,7 @@ func (r *Robot) PromptUserForReply(regexID string, user string, prompt string) (
 
 // PromptUserChannelForReply is identical to PromptForReply, but prompts a
 // specific user in a given channel.
-func (r *Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
 	for i := 0; i < 3; i++ {

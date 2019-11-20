@@ -27,7 +27,7 @@ func knock(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 	case "init":
 		// Ignore, this plugin has no start-up
 	case "knock":
-		if ret := r.GetTaskConfig(&j); ret != bot.Ok {
+		if ret := r.GetTaskConfig(&j); ret != robot.Ok {
 			r.Reply("Sorry, I couldn't find my joke book")
 		}
 		if len(j.Jokes) == 0 {
@@ -63,7 +63,7 @@ func knock(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 				r.Reply("Sheesh, are you kidding me? Ok, I'll assume you meant 'Who's there?'...")
 				r.Pause(1)
 				break
-			} else if ret != bot.Ok {
+			} else if ret != robot.Ok {
 				r.Reply("Sorry, something broke")
 				return
 			} else {
@@ -106,7 +106,7 @@ func knock(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 					r.Reply(r.RandomString(j.Phooey))
 					return
 				}
-			} else if ret == bot.Ok {
+			} else if ret == robot.Ok {
 				// Did the user reply correctly with <j.First> who?
 				if strings.HasPrefix(strings.ToLower(reply), strings.ToLower(joke.First)) {
 					r.Say(joke.Second)

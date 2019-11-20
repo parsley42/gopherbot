@@ -229,7 +229,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Generate a synthetic Robot for access to it's methods
 	r := Robot{
-		robot.Message{
+		&robot.Message{
 			User:            f.User,
 			ProtocolUser:    c.ProtocolUser,
 			Channel:         f.Channel,

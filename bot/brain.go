@@ -508,7 +508,7 @@ func updateDatum(key, locktoken string, datum interface{}) (ret robot.RetVal) {
 // a struct. If rw is set, the datum is checked out read-write and a non-empty
 // lock token is returned that expires after lockTimeout (250ms). The bool
 // return indicates whether the datum exists.
-func (r *Robot) CheckoutDatum(key string, datum interface{}, rw bool) (locktoken string, exists bool, ret robot.RetVal) {
+func (r Robot) CheckoutDatum(key string, datum interface{}, rw bool) (locktoken string, exists bool, ret robot.RetVal) {
 	if strings.ContainsRune(key, ':') {
 		ret = robot.InvalidDatumKey
 		Log(robot.Error, "Invalid memory key, ':' disallowed: %s", key)
@@ -525,7 +525,7 @@ func (r *Robot) CheckoutDatum(key string, datum interface{}, rw bool) (locktoken
 }
 
 // CheckinDatum unlocks a datum without updating it, it always succeeds
-func (r *Robot) CheckinDatum(key, locktoken string) {
+func (r Robot) CheckinDatum(key, locktoken string) {
 	if locktoken == "" {
 		return
 	}
@@ -545,7 +545,7 @@ func (r *Robot) CheckinDatum(key, locktoken string) {
 // UpdateDatum tries to update a piece of data in the robot's brain, providing
 // a struct to marshall and a (hopefully good) lock token. If err != nil, the
 // update failed.
-func (r *Robot) UpdateDatum(key, locktoken string, datum interface{}) (ret robot.RetVal) {
+func (r Robot) UpdateDatum(key, locktoken string, datum interface{}) (ret robot.RetVal) {
 	if strings.ContainsRune(key, ':') {
 		Log(robot.Error, "Invalid memory key, ':' disallowed: %s", key)
 		return robot.InvalidDatumKey
@@ -565,7 +565,7 @@ func (r *Robot) UpdateDatum(key, locktoken string, datum interface{}) (ret robot
 // be used by plugins to remember other contextual facts. Since memories are
 // indexed by user and channel, but not plugin, these facts can be referenced
 // between plugins. This functionality is considered EXPERIMENTAL.
-func (r *Robot) Remember(key, value string) {
+func (r Robot) Remember(key, value string) {
 	timestamp := time.Now()
 	memory := shortTermMemory{value, timestamp}
 	context := memoryContext{key, r.User, r.Channel}
@@ -579,12 +579,12 @@ func (r *Robot) Remember(key, value string) {
 // short term memories. e.g. RememberContext("server", "web1.my.dom") means that
 // next time the user uses "it" in the context of a "server", the robot will
 // substitute "web1.my.dom".
-func (r *Robot) RememberContext(context, value string) {
+func (r Robot) RememberContext(context, value string) {
 	r.Remember("context:"+context, value)
 }
 
 // Recall recalls a short term memory, or the empty string if it doesn't exist
-func (r *Robot) Recall(key string) string {
+func (r Robot) Recall(key string) string {
 	context := memoryContext{key, r.User, r.Channel}
 	shortTermMemories.Lock()
 	memory, ok := shortTermMemories.m[context]

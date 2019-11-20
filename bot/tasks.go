@@ -214,7 +214,7 @@ func initializePlugins() {
 // "init", empty channel, the bot's username, and no arguments, so the plugin
 // can store this information for, e.g., scheduled jobs.
 // See builtins.go for the pluginHandlers definition.
-func RegisterPlugin(name string, plug PluginHandler) {
+func RegisterPlugin(name string, plug robot.PluginHandler) {
 	if stopRegistrations {
 		return
 	}

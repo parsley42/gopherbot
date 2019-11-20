@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lnxjedi/gopherbot/bot"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 const datumName = "listmap"
@@ -30,22 +31,23 @@ type config struct {
 }
 
 // Define the handler function
-func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal) {
+func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	// Create an empty map to unmarshal into
 	if command == "init" { // ignore init
 		return
 	}
+	m := r.GetMessage()
 	var lists = make(map[string]itemList)
 	var lock string
-	var ret bot.RetVal
+	var ret robot.RetVal
 	scope := &config{}
 
 	datumKey := datumName // default global
 	ret = r.GetTaskConfig(&scope)
-	r.Log(bot.Debug, "Retrieved lists config: %v", scope)
-	if ret == bot.Ok {
+	r.Log(robot.Debug, "Retrieved lists config: %v", scope)
+	if ret == robot.Ok {
 		if strings.ToLower(scope.Scope) == "channel" {
-			datumKey = r.Channel + ":" + datumName
+			datumKey = m.Channel + ":" + datumName
 		}
 	}
 
@@ -69,8 +71,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			}
 		}()
 	}
-	if ret != bot.Ok {
-		r.Log(bot.Error, "Couldn't load lists: %s", ret)
+	if ret != robot.Ok {
+		r.Log(robot.Error, "Couldn't load lists: %s", ret)
 		r.Reply("I had a problem loading the lists, somebody should check my log file")
 		r.CheckinDatum(datumKey, lock) // well-behaved plugins using the brain will always check in data when done
 		return
@@ -93,8 +95,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 				lists[listName] = list
 				found = true
 				mret := r.UpdateDatum(datumKey, lock, lists)
-				if mret != bot.Ok {
-					r.Log(bot.Error, "Couldn't update lists: %s", mret)
+				if mret != robot.Ok {
+					r.Log(robot.Error, "Couldn't update lists: %s", mret)
 					r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 				} else {
 					r.Say(fmt.Sprintf("Ok, I removed %s from the %s list", item, listName))
@@ -123,8 +125,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			msg = "Deleted"
 		}
 		mret := r.UpdateDatum(datumKey, lock, lists)
-		if mret != bot.Ok {
-			r.Log(bot.Error, "Couldn't update lists: %s", mret)
+		if mret != robot.Ok {
+			r.Log(robot.Error, "Couldn't update lists: %s", mret)
 			r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 		} else {
 			r.Say(msg)
@@ -171,7 +173,7 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 		case "show":
 			r.Say(fmt.Sprintf("Here's what I have on the %s list:\n%s", listName, strings.Trim(listBuffer.String(), "\n")))
 		case "send":
-			if ret := r.Email(fmt.Sprintf("The %s list", args[0]), &listBuffer); ret != bot.Ok {
+			if ret := r.Email(fmt.Sprintf("The %s list", args[0]), &listBuffer); ret != robot.Ok {
 				r.Say("Sorry, there was an error sending the email - have somebody check the my log file")
 				return
 			}
@@ -200,7 +202,7 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 		if !ok {
 			r.CheckinDatum(datumKey, lock)
 			rep, ret := r.PromptForReply("YesNo", fmt.Sprintf("I don't have a '%s' list, do you want to create it?", args[1]))
-			if ret == bot.Ok {
+			if ret == robot.Ok {
 				switch strings.ToLower(rep) {
 				case "n", "no":
 					r.Say("Item not added")
@@ -212,8 +214,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 					if !ok {
 						lists[listName] = []string{item}
 						mret := r.UpdateDatum(datumKey, lock, lists)
-						if mret != bot.Ok {
-							r.Log(bot.Error, "Couldn't update lists: %s", mret)
+						if mret != robot.Ok {
+							r.Log(robot.Error, "Couldn't update lists: %s", mret)
 							r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 						} else {
 							r.Say(fmt.Sprintf("Ok, I created a new %s list and added %s to it", args[1], item))
@@ -230,8 +232,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 						list = append(list, item)
 						lists[listName] = list
 						mret := r.UpdateDatum(datumKey, lock, lists)
-						if mret != bot.Ok {
-							r.Log(bot.Error, "Couldn't update lists: %s", mret)
+						if mret != robot.Ok {
+							r.Log(robot.Error, "Couldn't update lists: %s", mret)
 							r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 						} else {
 							updated = true
@@ -254,8 +256,8 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			list = append(list, item)
 			lists[listName] = list
 			mret := r.UpdateDatum(datumKey, lock, lists)
-			if mret != bot.Ok {
-				r.Log(bot.Error, "Couldn't update lists: %s", mret)
+			if mret != robot.Ok {
+				r.Log(robot.Error, "Couldn't update lists: %s", mret)
 				r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 			} else {
 				updated = true
@@ -267,7 +269,7 @@ func lists(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 }
 
 func init() {
-	bot.RegisterPlugin("lists", bot.PluginHandler{
+	bot.RegisterPlugin("lists", robot.PluginHandler{
 		Handler: lists,
 		Config:  &config{},
 	})

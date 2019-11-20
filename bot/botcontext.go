@@ -81,7 +81,7 @@ func (c *botContext) registerActive(parent *botContext) {
 		currentUCMaps.Unlock()
 	}
 	if len(c.ProtocolUser) == 0 && len(c.User) > 0 {
-		if idRegex.MatchString(c.User) {
+		if robot.IDRegex.MatchString(c.User) {
 			c.ProtocolUser = c.User
 		} else if ui, ok := c.maps.user[c.User]; ok {
 			c.ProtocolUser = bracket(ui.UserID)
@@ -91,7 +91,7 @@ func (c *botContext) registerActive(parent *botContext) {
 		}
 	}
 	if len(c.ProtocolChannel) == 0 && len(c.Channel) > 0 {
-		if idRegex.MatchString(c.Channel) {
+		if robot.IDRegex.MatchString(c.Channel) {
 			c.ProtocolChannel = c.Channel
 		} else if ci, ok := c.maps.channel[c.Channel]; ok {
 			c.ProtocolChannel = bracket(ci.ChannelID)
@@ -135,9 +135,9 @@ func (c *botContext) deregister() {
 
 // makeRobot returns a *Robot for plugins; the id lets Robot methods
 // get a reference back to the original context.
-func (c *botContext) makeRobot() *Robot {
-	return &Robot{
-		robot.Message{
+func (c *botContext) makeRobot() Robot {
+	return Robot{
+		&robot.Message{
 			User:            c.User,
 			ProtocolUser:    c.ProtocolUser,
 			Channel:         c.Channel,
@@ -223,9 +223,9 @@ type botContext struct {
 
 	failedTask, failedTaskDescription string // set when a task fails
 
-	history  HistoryProvider // history provider for generating the logger
-	timeZone *time.Location  // for history timestamping
-	logger   HistoryLogger   // where to send stdout / stderr
+	history  robot.HistoryProvider // history provider for generating the logger
+	timeZone *time.Location        // for history timestamping
+	logger   robot.HistoryLogger   // where to send stdout / stderr
 
 	sync.Mutex                     // Protects access to the items below
 	parent, child      *botContext // for sub-job contexts

@@ -47,43 +47,43 @@ func RegisterConnector(name string, connstarter func(robot.Handler, *log.Logger)
 // robot holds all the interal data relevant to the Bot. Most of it is populated
 // by loadConfig, other stuff is populated by the connector.
 var botCfg struct {
-	robot.Connector                          // Connector interface, implemented by each specific protocol
-	adminUsers           []string            // List of users with access to administrative commands
-	alias                rune                // single-char alias for addressing the bot
-	botinfo              UserInfo            // robot's name, ID, email, etc.
-	adminContact         string              // who to contact for problems with the bot
-	mailConf             botMailer           // configuration to use when sending email
-	ignoreUsers          []string            // list of users to never listen to, like other bots
-	preRegex             *regexp.Regexp      // regex for matching prefixed commands, e.g. "Gort, drop your weapon"
-	postRegex            *regexp.Regexp      // regex for matching, e.g. "open the pod bay doors, hal"
-	bareRegex            *regexp.Regexp      // regex for matching the robot's bare name, if you forgot it in the previous command
-	joinChannels         []string            // list of channels to join
-	defaultAllowDirect   bool                // whether plugins are available in DM by default
-	defaultMessageFormat robot.MessageFormat // Raw unless set to Variable or Fixed
-	plugChannels         []string            // list of channels where plugins are available by default
-	protocol             string              // Name of the protocol, e.g. "slack"
-	brainProvider        string              // Type of Brain provider to use
-	brain                SimpleBrain         // Interface for robot to Store and Retrieve data
-	encryptionKey        string              // Key for encrypting data (unlocks "real" key in brain)
-	historyProvider      string              // Name of the history provider to use
-	history              HistoryProvider     // Provider for storing and retrieving job / plugin histories
-	workSpace            string              // Read/Write directory where the robot does work
-	defaultElevator      string              // Plugin name for performing elevation
-	defaultAuthorizer    string              // Plugin name for performing authorization
-	externalPlugins      []ExternalTask      // List of external plugins to load
-	externalJobs         []ExternalTask      // List of external jobs to load
-	externalTasks        []ExternalTask      // List of external tasks to load
-	ScheduledJobs        []ScheduledTask     // List of scheduled tasks
-	port                 string              // Localhost port to listen on
-	stop                 chan struct{}       // stop channel for stopping the connector
-	done                 chan bool           // shutdown channel, true to restart
-	timeZone             *time.Location      // for forcing the TimeZone, Unix only
-	defaultJobChannel    string              // where job statuses will post if not otherwise specified
-	shuttingDown         bool                // to prevent new plugins from starting
-	restart              bool                // indicate stop and restart vs. stop only, for bootstrapping
-	pluginsRunning       int                 // a count of how many plugins are currently running
-	sync.WaitGroup                           // for keeping track of running plugins
-	sync.RWMutex                             // for safe updating of bot data structures
+	robot.Connector                            // Connector interface, implemented by each specific protocol
+	adminUsers           []string              // List of users with access to administrative commands
+	alias                rune                  // single-char alias for addressing the bot
+	botinfo              UserInfo              // robot's name, ID, email, etc.
+	adminContact         string                // who to contact for problems with the bot
+	mailConf             botMailer             // configuration to use when sending email
+	ignoreUsers          []string              // list of users to never listen to, like other bots
+	preRegex             *regexp.Regexp        // regex for matching prefixed commands, e.g. "Gort, drop your weapon"
+	postRegex            *regexp.Regexp        // regex for matching, e.g. "open the pod bay doors, hal"
+	bareRegex            *regexp.Regexp        // regex for matching the robot's bare name, if you forgot it in the previous command
+	joinChannels         []string              // list of channels to join
+	defaultAllowDirect   bool                  // whether plugins are available in DM by default
+	defaultMessageFormat robot.MessageFormat   // Raw unless set to Variable or Fixed
+	plugChannels         []string              // list of channels where plugins are available by default
+	protocol             string                // Name of the protocol, e.g. "slack"
+	brainProvider        string                // Type of Brain provider to use
+	brain                SimpleBrain           // Interface for robot to Store and Retrieve data
+	encryptionKey        string                // Key for encrypting data (unlocks "real" key in brain)
+	historyProvider      string                // Name of the history provider to use
+	history              robot.HistoryProvider // Provider for storing and retrieving job / plugin histories
+	workSpace            string                // Read/Write directory where the robot does work
+	defaultElevator      string                // Plugin name for performing elevation
+	defaultAuthorizer    string                // Plugin name for performing authorization
+	externalPlugins      []ExternalTask        // List of external plugins to load
+	externalJobs         []ExternalTask        // List of external jobs to load
+	externalTasks        []ExternalTask        // List of external tasks to load
+	ScheduledJobs        []ScheduledTask       // List of scheduled tasks
+	port                 string                // Localhost port to listen on
+	stop                 chan struct{}         // stop channel for stopping the connector
+	done                 chan bool             // shutdown channel, true to restart
+	timeZone             *time.Location        // for forcing the TimeZone, Unix only
+	defaultJobChannel    string                // where job statuses will post if not otherwise specified
+	shuttingDown         bool                  // to prevent new plugins from starting
+	restart              bool                  // indicate stop and restart vs. stop only, for bootstrapping
+	pluginsRunning       int                   // a count of how many plugins are currently running
+	sync.WaitGroup                             // for keeping track of running plugins
+	sync.RWMutex                               // for safe updating of bot data structures
 }
 
 var listening bool // for tests where initBot runs multiple times

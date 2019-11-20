@@ -41,6 +41,6 @@ type ConnectorMessage struct {
 type PluginHandler struct {
 	DefaultConfig string /* A yaml-formatted multiline string defining the default Plugin configuration. It should be liberally commented for use in generating
 	custom configuration for the plugin. If a Config: section is defined, it should match the structure of the optional Config interface{} */
-	Handler func(Robot, command string, args ...string) TaskRetVal // The callback function called by the robot whenever a Command is matched
-	Config  interface{}                                            // An optional empty struct defining custom configuration for the plugin
+	Handler func(r Robot, command string, args ...string) TaskRetVal // The callback function called by the robot whenever a Command is matched
+	Config  interface{}                                              // An optional empty struct defining custom configuration for the plugin
 }

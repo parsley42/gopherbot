@@ -32,24 +32,11 @@ func init() {
 	}
 }
 
-var idRegex = regexp.MustCompile(`^<(.*)>$`)
-
-// ExtractID is a utility function to check a user/channel string against
-// the pattern '<internalID>' and if it matches return the internalID,true;
-// otherwise return the unmodified string,false.
-func ExtractID(u string) (string, bool) {
-	matches := idRegex.FindStringSubmatch(u)
-	if len(matches) > 0 {
-		return matches[1], true
-	}
-	return u, false
-}
-
 func bracket(s string) string {
 	return "<" + s + ">"
 }
 
-func checkPanic(r *Robot, s string) {
+func checkPanic(r Robot, s string) {
 	if rcv := recover(); rcv != nil {
 		Log(robot.Error, "PANIC from '%s': %s\nStack trace:%s", s, rcv, godebug.Stack())
 		r.Reply(fmt.Sprintf("OUCH! It looks like you found a bug - please ask an admin to check the log and give them this string: '%s'", s))

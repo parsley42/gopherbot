@@ -32,7 +32,8 @@ func init() {
 
 /* builtin plugins, like help */
 
-func help(r *robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -55,7 +56,7 @@ func help(r *robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		} else {
 			alias = string(aliasCh)
 		}
-		channelID, _ := ExtractID(r.ProtocolChannel)
+		channelID, _ := robot.ExtractID(r.ProtocolChannel)
 		msg := make([]string, 0, 7)
 		msg = append(msg, "Here's some information about me and my running environment:")
 		msg = append(msg, fmt.Sprintf("The hostname for the server I'm running on is: %s", hostName))
@@ -184,7 +185,8 @@ func help(r *robot.Robot, command string, args ...string) (retval robot.TaskRetV
 	return
 }
 
-func dmadmin(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -373,7 +375,8 @@ func dmadmin(r *Robot, command string, args ...string) (retval robot.TaskRetVal)
 	return
 }
 
-func encryptcfg(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func encryptcfg(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(Robot)
 	switch command {
 	case "init":
 		return
@@ -403,7 +406,8 @@ var rightback = []string{
 	"You won't even have time to miss me...",
 }
 
-func logging(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func logging(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(Robot)
 	switch command {
 	case "init":
 		return
@@ -432,10 +436,11 @@ func logging(r *Robot, command string, args ...string) (retval robot.TaskRetVal)
 	return
 }
 
-func admin(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	if command == "init" {
 		return // ignore init
 	}
+	r := m.(Robot)
 	switch command {
 	case "reload":
 		err := r.getContext().loadConfig(false)

@@ -15,12 +15,12 @@ import (
 
 // Robot is the internal struct for a robot.Message
 type Robot struct {
-	robot.Message
+	*robot.Message
 	id int // For looking up the botContext
 }
 
 // getContext returns the botContext for a given Robot
-func (r *Robot) getContext() *botContext {
+func (r Robot) getContext() *botContext {
 	return getBotContextInt(r.id)
 }
 
@@ -28,7 +28,7 @@ func (r *Robot) getContext() *botContext {
 // robot, and true for automatic tasks. Should be used sparingly, when a single
 // plugin has multiple commands, some which require admin. Otherwise the plugin
 // should just configure RequireAdmin: true
-func (r *Robot) CheckAdmin() bool {
+func (r Robot) CheckAdmin() bool {
 	c := r.getContext()
 	if c.automaticTask {
 		return true
@@ -47,7 +47,7 @@ func (r *Robot) CheckAdmin() bool {
 
 // SetParameter sets a parameter for the current pipeline, useful only for
 // passing parameters (as environment variables) to tasks later in the pipeline.
-func (r *Robot) SetParameter(name, value string) bool {
+func (r Robot) SetParameter(name, value string) bool {
 	if !identifierRe.MatchString(name) {
 		return false
 	}
@@ -58,7 +58,7 @@ func (r *Robot) SetParameter(name, value string) bool {
 
 // GetSecret looks up the value of a secret for the namespace (if the namespace
 // is extended) or current task. On error a zero-length string is returned.
-func (r *Robot) GetSecret(name string) string {
+func (r Robot) GetSecret(name string) string {
 	cryptKey.RLock()
 	initialized := cryptKey.initialized
 	key := cryptKey.key
@@ -144,7 +144,7 @@ func (r *Robot) GetSecret(name string) string {
 // SetWorkingDirectory sets the working directory of the pipeline for all scripts
 // executed. The path argument can be absolute or relative; if relative, it is
 // always relative to the robot's WorkSpace.
-func (r *Robot) SetWorkingDirectory(path string) bool {
+func (r Robot) SetWorkingDirectory(path string) bool {
 	c := r.getContext()
 	if path == "." {
 		c.workingDirectory = ""
@@ -183,7 +183,7 @@ func (r *Robot) SetWorkingDirectory(path string) bool {
 // with Stored parameters, too. So GetParameter is useful for both short-term
 // parameters in a pipeline, and for getting long-term parameters such as
 // credentials.
-func (r *Robot) GetParameter(key string) string {
+func (r Robot) GetParameter(key string) string {
 	c := r.getContext()
 	value, ok := c.taskenvironment[key]
 	if ok {
@@ -207,37 +207,37 @@ func (r *Robot) Elevate(immediate bool) bool {
 
 // Fixed is a deprecated convenience function for sending a message with fixed width
 // font.
-func (r *Robot) Fixed() *Robot {
-	nr := *r
+func (r Robot) Fixed() robot.Robot {
+	nr := r
 	nr.Format = robot.Fixed
-	return &nr
+	return nr
 }
 
 // MessageFormat returns a robot object with the given format, most likely for a
 // plugin that will mostly use e.g. Variable format.
-func (r *Robot) MessageFormat(f robot.MessageFormat) *Robot {
-	nr := *r
+func (r Robot) MessageFormat(f robot.MessageFormat) robot.Robot {
+	nr := r
 	nr.Format = f
-	return &nr
+	return nr
 }
 
 // Direct is a convenience function for initiating a DM conversation with a
 // user. Created initially so a plugin could prompt for a password in a DM.
-func (r *Robot) Direct() *Robot {
-	nr := *r
+func (r Robot) Direct() robot.Robot {
+	nr := r
 	nr.Channel = ""
-	return &nr
+	return nr
 }
 
 // Pause is a convenience function to pause some fractional number of seconds.
-func (r *Robot) Pause(s float64) {
+func (r Robot) Pause(s float64) {
 	ms := time.Duration(s * float64(1000))
 	time.Sleep(ms * time.Millisecond)
 }
 
 // RandomString is a convenience function for returning a random string
 // from a slice of strings, so that replies can vary.
-func (r *Robot) RandomString(s []string) string {
+func (r Robot) RandomString(s []string) string {
 	l := len(s)
 	if l == 0 {
 		return ""
@@ -246,14 +246,14 @@ func (r *Robot) RandomString(s []string) string {
 }
 
 // RandomInt uses the robot's seeded random to return a random int 0 <= retval < n
-func (r *Robot) RandomInt(n int) int {
+func (r Robot) RandomInt(n int) int {
 	return random.Intn(n)
 }
 
 // GetBotAttribute returns an attribute of the robot or "" if unknown.
 // Current attributes:
 // name, alias, fullName, contact
-func (r *Robot) GetBotAttribute(a string) *robot.AttrRet {
+func (r Robot) GetBotAttribute(a string) *robot.AttrRet {
 	a = strings.ToLower(a)
 	botCfg.RLock()
 	defer botCfg.RUnlock()
@@ -313,7 +313,7 @@ and call GetTaskConfig with a double-pointer:
 
 ... And voila! *pConf is populated with the contents from the configured Config: stanza
 */
-func (r *Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
+func (r Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
 	c := r.getContext()
 	task, _, _ := getTask(c.currentTask)
 	if task.config == nil {
@@ -340,10 +340,12 @@ func (r *Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
 
 // Log logs a message to the robot's log file (or stderr) if the level
 // is lower than or equal to the robot's current log level
-func (r *Robot) Log(l robot.LogLevel, m string, v ...interface{}) {
+func (r Robot) Log(l robot.LogLevel, m string, v ...interface{}) (logged bool) {
 	c := r.getContext()
+	logged = Log(l, m, v...)
 	if Log(l, m, v...) && c.logger != nil {
 		line := "LOG " + logLevelToStr(l) + " " + fmt.Sprintln(v...)
 		c.logger.Log(strings.TrimSpace(line))
 	}
+	return
 }

@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/lnxjedi/gopherbot/bot"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 var (
@@ -22,7 +23,7 @@ type MemeConfig struct {
 	Password string
 }
 
-func memegen(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal) {
+func memegen(r robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	var m *MemeConfig
 	r.GetTaskConfig(&m) // make m point to a valid, thread-safe MemeConfig
 	if len(m.Password) == 0 {
@@ -50,7 +51,7 @@ func memegen(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVa
 			r.Say(url)
 		} else {
 			r.Reply("Sorry, something went wrong. Check the logs?")
-			r.Log(bot.Error, "Generating a meme: %v", err)
+			r.Log(robot.Error, "Generating a meme: %v", err)
 		}
 	}
 	return
@@ -91,7 +92,7 @@ func createMeme(m *MemeConfig, templateId, topText, bottomText string) (string, 
 }
 
 func init() {
-	bot.RegisterPlugin("memes", bot.PluginHandler{
+	bot.RegisterPlugin("memes", robot.PluginHandler{
 		Handler: memegen,
 		Config:  &MemeConfig{},
 	})

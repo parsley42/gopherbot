@@ -26,11 +26,12 @@ const histPageSize = 2048    // how much history to display at a time
 const maxMailBody = 10485760 // 10MB
 
 func init() {
-	RegisterPlugin("builtin-history", PluginHandler{Handler: jobhistory})
-	RegisterPlugin("builtin-jobcmd", PluginHandler{Handler: jobcommands})
+	RegisterPlugin("builtin-history", robot.PluginHandler{Handler: jobhistory})
+	RegisterPlugin("builtin-jobcmd", robot.PluginHandler{Handler: jobcommands})
 }
 
-func jobcommands(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func jobcommands(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(Robot)
 	if command == "init" {
 		return
 	}
@@ -72,7 +73,7 @@ func jobcommands(r *Robot, command string, args ...string) (retval robot.TaskRet
 	return
 }
 
-func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run int) (retval robot.TaskRetVal) {
+func emailhistory(r Robot, hp robot.HistoryProvider, user, address, spec string, run int) (retval robot.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Error getting history %d for task '%s': %v", run, spec, err)
@@ -107,7 +108,7 @@ func emailhistory(r *Robot, hp HistoryProvider, user, address, spec string, run 
 	return
 }
 
-func pagehistory(r *Robot, hp HistoryProvider, spec string, run int) (retval robot.TaskRetVal) {
+func pagehistory(r Robot, hp robot.HistoryProvider, spec string, run int) (retval robot.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Error getting history %d for task '%s': %v", run, spec, err)
@@ -166,10 +167,11 @@ PageLoop:
 	return
 }
 
-func jobhistory(r *Robot, command string, args ...string) (retval robot.TaskRetVal) {
+func jobhistory(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	if command == "init" {
 		return
 	}
+	r := m.(Robot)
 
 	var histType, latest, histSpec, index, user, address string
 

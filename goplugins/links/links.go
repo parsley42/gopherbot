@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lnxjedi/gopherbot/bot"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 const datumNameDefault = "links"
@@ -25,7 +26,8 @@ type config struct {
 }
 
 // Define the handler function
-func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal) {
+func links(r robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	m := r.GetMessage()
 	if command == "init" { // ignore init
 		return
 	}
@@ -36,9 +38,9 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 
 	datumKey := datumNameDefault // default global
 	ret := r.GetTaskConfig(&scope)
-	if ret == bot.Ok {
+	if ret == robot.Ok {
 		if strings.ToLower(scope.Scope) == "channel" {
-			datumKey = r.Channel + ":" + datumNameDefault
+			datumKey = m.Channel + ":" + datumNameDefault
 		}
 	}
 
@@ -60,8 +62,8 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			}
 		}()
 	}
-	if ret != bot.Ok {
-		r.Log(bot.Error, "Couldn't load links: %s", ret)
+	if ret != robot.Ok {
+		r.Log(robot.Error, "Couldn't load links: %s", ret)
 		r.Reply("I had a problem loading the links, somebody should check my log file")
 		r.CheckinDatum(datumKey, lock) // well-behaved plugins using the brain will always check in data when done
 		return
@@ -117,7 +119,7 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			r.CheckinDatum(datumKey, lock)
 			r.Say(fmt.Sprintf("I already have that link associated with: %s", current))
 			rep, ret := r.PromptForReply("YesNo", "Do you want me to replace it?")
-			if ret == bot.Ok {
+			if ret == robot.Ok {
 				switch strings.ToLower(rep) {
 				case "n", "no":
 					r.Say("Ok, I'll keep the old one")
@@ -136,7 +138,7 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 			r.CheckinDatum(datumKey, lock)
 			prompt := "What keywords or phrase do you want to attach to the link?"
 			rep, ret := r.PromptForReply("lookup", prompt)
-			if ret == bot.Ok {
+			if ret == robot.Ok {
 				lookup = spaces.ReplaceAllString(rep, ` `)
 			} else {
 				r.Reply("Sorry, I didn't get your keywords / phrase")
@@ -152,8 +154,8 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 		}
 		links[link] = lookup
 		mret := r.UpdateDatum(datumKey, lock, links)
-		if mret != bot.Ok {
-			r.Log(bot.Error, "Couldn't update links", mret)
+		if mret != robot.Ok {
+			r.Log(robot.Error, "Couldn't update links", mret)
 			r.Reply("Crud. I had a problem saving the links - you can try again or ask an administrator to check the log")
 			return
 		}
@@ -168,8 +170,8 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 		}
 		delete(links, link)
 		mret := r.UpdateDatum(datumKey, lock, links)
-		if mret != bot.Ok {
-			r.Log(bot.Error, "Couldn't update links", mret)
+		if mret != robot.Ok {
+			r.Log(robot.Error, "Couldn't update links", mret)
 			r.Reply("Crud. I had a problem saving the links - you can try again or ask an administrator to check the log")
 			return
 		}
@@ -180,7 +182,7 @@ func links(r *bot.Robot, command string, args ...string) (retval bot.TaskRetVal)
 }
 
 func init() {
-	bot.RegisterPlugin("links", bot.PluginHandler{
+	bot.RegisterPlugin("links", robot.PluginHandler{
 		Handler: links,
 		Config:  &config{},
 	})
