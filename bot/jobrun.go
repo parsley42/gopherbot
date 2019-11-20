@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	b "github.com/lnxjedi/gopherbot/models"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 const runJobRegex = `run +job +(` + identifierRegex + `)(?: (.*))?`
@@ -31,15 +31,15 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 		}
 		if task.Disabled {
 			msg := fmt.Sprintf("Skipping disabled job '%s', reason: %s", task.name, task.reason)
-			Log(Trace, msg)
+			Log(robot.Trace, msg)
 			c.debugT(t, msg, false)
 			continue
 		}
-		Log(Trace, "Checking triggers for job '%s'", task.name)
+		Log(robot.Trace, "Checking triggers for job '%s'", task.name)
 		triggers := job.Triggers
 		c.debugT(t, fmt.Sprintf("Checking %d JobTriggers against message: '%s' from user '%s' in channel '%s'", len(triggers), c.msg, c.User, c.Channel), false)
 		for _, trigger := range triggers {
-			Log(Trace, "Checking '%s' against user '%s', channel '%s', regex: '%s'", c.msg, trigger.User, trigger.Channel, trigger.Regex)
+			Log(robot.Trace, "Checking '%s' against user '%s', channel '%s', regex: '%s'", c.msg, trigger.User, trigger.Channel, trigger.Regex)
 			if c.User != trigger.User {
 				c.debugT(t, fmt.Sprintf("User '%s' doesn't match trigger user '%s'", c.User, trigger.User), false)
 				continue
@@ -52,7 +52,7 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 			matched := false
 			if matches != nil {
 				c.debugT(t, fmt.Sprintf("Matched trigger regex '%s'", trigger.Regex), false)
-				Log(Trace, "Message '%s' matches trigger for job '%s'", c.msg, task.name)
+				Log(robot.Trace, "Message '%s' matches trigger for job '%s'", c.msg, task.name)
 				matched = true
 				triggerArgs = matches[0][1:]
 			} else {
@@ -142,11 +142,11 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 						var t int
 						for t = 1; t < 3; t++ {
 							arg, ret := r.PromptForReply(argspec.Label, fmt.Sprintf("What's the value for '%s'?", argspec.Label))
-							if ret == b.ReplyNotMatched {
+							if ret == robot.ReplyNotMatched {
 								r.Say(fmt.Sprintf("That doesn't match the pattern for argument '%s'", argspec.Label))
 							} else {
-								if ret != b.Ok {
-									r.Log(Warn, "failed getting arguments running job '%s': %s", jobName, ret)
+								if ret != robot.Ok {
+									r.Log(robot.Warn, "failed getting arguments running job '%s': %s", jobName, ret)
 									r.Say(fmt.Sprintf("(not running job '%s')", jobName))
 									c.deregister()
 									return

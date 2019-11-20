@@ -12,6 +12,8 @@ package bot
 import (
 	"io"
 	"log"
+
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 type historyLog struct {
@@ -50,11 +52,11 @@ type HistoryProvider interface {
 }
 
 // Map of registered history providers
-var historyProviders = make(map[string]func(Handler) HistoryProvider)
+var historyProviders = make(map[string]func(robot.Handler) HistoryProvider)
 
 // RegisterHistoryProvider allows history implementations to register a function
 // with a named provider type that returns a HistoryProvider interface.
-func RegisterHistoryProvider(name string, provider func(Handler) HistoryProvider) {
+func RegisterHistoryProvider(name string, provider func(robot.Handler) HistoryProvider) {
 	if stopRegistrations {
 		return
 	}

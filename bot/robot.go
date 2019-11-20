@@ -7,35 +7,17 @@ import (
 	"strings"
 	"time"
 
-	b "github.com/lnxjedi/gopherbot/models"
+	"github.com/lnxjedi/gopherbot/robot"
 )
-
-// MessageFormat indicates how the connector should display the content of
-// the message. One of Variable, Fixed or Raw
-type MessageFormat int
-
-// Outgoing message format, Variable or Fixed
-const (
-	Raw MessageFormat = iota // protocol native, zero value -> default if not specified
-	Fixed
-	Variable
-)
-
-// Robot is passed to each task as it runs, initialized from the botContext.
-// Tasks can copy and modify the Robot without affecting the botContext.
-type Robot struct {
-	User            string            // The user who sent the message; this can be modified for replying to an arbitrary user
-	ProtocolUser    string            // the protocol internal ID of the user
-	Channel         string            // The channel where the message was received, or "" for a direct message. This can be modified to send a message to an arbitrary channel.
-	ProtocolChannel string            // the protocol internal channel ID
-	Protocol        Protocol          // slack, terminal, test, others; used for interpreting rawmsg or sending messages with Format = 'Raw'
-	Incoming        *ConnectorMessage // raw struct of message sent by connector; interpret based on protocol. For Slack this is a *slack.MessageEvent
-	Format          MessageFormat     // The outgoing message format, one of Raw, Fixed, or Variable
-	id              int               // For looking up the botContext
-}
 
 /* robot_methods.go defines some convenience functions on struct Robot to
    simplify use by plugins. */
+
+// Robot is the internal struct for a robot.Message
+type Robot struct {
+	robot.Message
+	id int // For looking up the botContext
+}
 
 // getContext returns the botContext for a given Robot
 func (r *Robot) getContext() *botContext {
@@ -82,13 +64,13 @@ func (r *Robot) GetSecret(name string) string {
 	key := cryptKey.key
 	cryptKey.RUnlock()
 	if !initialized {
-		r.Log(Warn, "GetSecret called but encryption not initialized")
+		r.Log(robot.Warn, "GetSecret called but encryption not initialized")
 		return ""
 	}
 
 	var secret []byte
 	var exists bool
-	var ret b.RetVal
+	var ret robot.RetVal
 
 	c := r.getContext()
 	if !c.secrets.retrieved {
@@ -96,12 +78,12 @@ func (r *Robot) GetSecret(name string) string {
 		// pipeline
 		c.secrets.retrieved = true
 		_, exists, ret = checkoutDatum(secretKey, &c.secrets, false)
-		if ret != b.Ok {
-			r.Log(Error, "Error retrieving secrets in GetSecret: %s", ret)
+		if ret != robot.Ok {
+			r.Log(robot.Error, "Error retrieving secrets in GetSecret: %s", ret)
 			return ""
 		}
 		if !exists {
-			r.Log(Warn, "GetSecret called for '%s', but no secrets stored", name)
+			r.Log(robot.Warn, "GetSecret called for '%s', but no secrets stored", name)
 			return ""
 		}
 	}
@@ -129,9 +111,9 @@ func (r *Robot) GetSecret(name string) string {
 			}
 		}
 		if !found {
-			r.Log(Debug, "Secrets not found for extended namespace '%s'", c.nsExtension)
+			r.Log(robot.Debug, "Secrets not found for extended namespace '%s'", c.nsExtension)
 		} else if !secfound {
-			r.Log(Debug, "Secret '%s' not found for extended namespace '%s'", name, c.nsExtension)
+			r.Log(robot.Debug, "Secret '%s' not found for extended namespace '%s'", name, c.nsExtension)
 		}
 	}
 	// Fall back to task secrets if namespace secret not found
@@ -139,21 +121,21 @@ func (r *Robot) GetSecret(name string) string {
 		var tMap map[string][]byte
 		tMap, exists = c.secrets.TaskParams[task.NameSpace]
 		if !exists {
-			r.Log(Debug, "Secrets not found for task/namespace '%s'", task.NameSpace)
+			r.Log(robot.Debug, "Secrets not found for task/namespace '%s'", task.NameSpace)
 		} else if secret, exists = tMap[name]; !exists {
-			r.Log(Debug, "Secret '%s' not found for task/namespace '%s'", name, task.NameSpace)
+			r.Log(robot.Debug, "Secret '%s' not found for task/namespace '%s'", name, task.NameSpace)
 		} else {
 			secfound = true
 		}
 	}
 	if !secfound {
-		r.Log(Warn, "Secret '%s' not found for extended namespace '%s' or task/namespace '%s'", name, c.nsExtension, task.NameSpace)
+		r.Log(robot.Warn, "Secret '%s' not found for extended namespace '%s' or task/namespace '%s'", name, c.nsExtension, task.NameSpace)
 		return ""
 	}
 	var value []byte
 	var err error
 	if value, err = decrypt(secret, key); err != nil {
-		r.Log(Error, "Error decrypting secret '%s': %v", name, err)
+		r.Log(robot.Error, "Error decrypting secret '%s': %v", name, err)
 		return ""
 	}
 	return string(value)
@@ -173,7 +155,7 @@ func (r *Robot) SetWorkingDirectory(path string) bool {
 		if ok {
 			c.workingDirectory = path
 		} else {
-			r.Log(Error, "Invalid path '%s' in SetWorkingDirectory", path)
+			r.Log(robot.Error, "Invalid path '%s' in SetWorkingDirectory", path)
 		}
 		return ok
 	}
@@ -190,7 +172,7 @@ func (r *Robot) SetWorkingDirectory(path string) bool {
 	if ok {
 		c.workingDirectory = path
 	} else {
-		r.Log(Error, "Invalid path '%s'(%s) in SetWorkingDirectory", path, checkPath)
+		r.Log(robot.Error, "Invalid path '%s'(%s) in SetWorkingDirectory", path, checkPath)
 	}
 	return ok
 }
@@ -217,7 +199,7 @@ func (r *Robot) Elevate(immediate bool) bool {
 	c := r.getContext()
 	task, _, _ := getTask(c.currentTask)
 	retval := c.elevate(task, immediate)
-	if retval == b.Success {
+	if retval == robot.Success {
 		return true
 	}
 	return false
@@ -227,13 +209,13 @@ func (r *Robot) Elevate(immediate bool) bool {
 // font.
 func (r *Robot) Fixed() *Robot {
 	nr := *r
-	nr.Format = Fixed
+	nr.Format = robot.Fixed
 	return &nr
 }
 
 // MessageFormat returns a robot object with the given format, most likely for a
 // plugin that will mostly use e.g. Variable format.
-func (r *Robot) MessageFormat(f MessageFormat) *Robot {
+func (r *Robot) MessageFormat(f robot.MessageFormat) *Robot {
 	nr := *r
 	nr.Format = f
 	return &nr
@@ -271,11 +253,11 @@ func (r *Robot) RandomInt(n int) int {
 // GetBotAttribute returns an attribute of the robot or "" if unknown.
 // Current attributes:
 // name, alias, fullName, contact
-func (r *Robot) GetBotAttribute(a string) *AttrRet {
+func (r *Robot) GetBotAttribute(a string) *robot.AttrRet {
 	a = strings.ToLower(a)
 	botCfg.RLock()
 	defer botCfg.RUnlock()
-	ret := b.Ok
+	ret := robot.Ok
 	var attr string
 	switch a {
 	case "name":
@@ -291,9 +273,9 @@ func (r *Robot) GetBotAttribute(a string) *AttrRet {
 	case "protocol":
 		attr = r.Protocol.String()
 	default:
-		ret = b.AttributeNotFound
+		ret = robot.AttributeNotFound
 	}
-	return &AttrRet{attr, ret}
+	return &robot.AttrRet{attr, ret}
 }
 
 /*
@@ -331,34 +313,34 @@ and call GetTaskConfig with a double-pointer:
 
 ... And voila! *pConf is populated with the contents from the configured Config: stanza
 */
-func (r *Robot) GetTaskConfig(dptr interface{}) b.RetVal {
+func (r *Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
 	c := r.getContext()
 	task, _, _ := getTask(c.currentTask)
 	if task.config == nil {
-		Log(Debug, "Task \"%s\" called GetTaskConfig, but no config was found.", task.name)
-		return b.NoConfigFound
+		Log(robot.Debug, "Task \"%s\" called GetTaskConfig, but no config was found.", task.name)
+		return robot.NoConfigFound
 	}
 	tp := reflect.ValueOf(dptr)
 	if tp.Kind() != reflect.Ptr {
-		Log(Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
-		return b.InvalidDblPtr
+		Log(robot.Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
+		return robot.InvalidDblPtr
 	}
 	p := reflect.Indirect(tp)
 	if p.Kind() != reflect.Ptr {
-		Log(Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
-		return b.InvalidDblPtr
+		Log(robot.Debug, "Task \"%s\" called GetTaskConfig, but didn't pass a double-pointer to a struct", task.name)
+		return robot.InvalidDblPtr
 	}
 	if p.Type() != reflect.ValueOf(task.config).Type() {
-		Log(Debug, "Task \"%s\" called GetTaskConfig with an invalid double-pointer", task.name)
-		return b.InvalidCfgStruct
+		Log(robot.Debug, "Task \"%s\" called GetTaskConfig with an invalid double-pointer", task.name)
+		return robot.InvalidCfgStruct
 	}
 	p.Set(reflect.ValueOf(task.config))
-	return b.Ok
+	return robot.Ok
 }
 
 // Log logs a message to the robot's log file (or stderr) if the level
 // is lower than or equal to the robot's current log level
-func (r *Robot) Log(l LogLevel, m string, v ...interface{}) {
+func (r *Robot) Log(l robot.LogLevel, m string, v ...interface{}) {
 	c := r.getContext()
 	if Log(l, m, v...) && c.logger != nil {
 		line := "LOG " + logLevelToStr(l) + " " + fmt.Sprintln(v...)

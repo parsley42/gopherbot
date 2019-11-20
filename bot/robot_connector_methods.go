@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	b "github.com/lnxjedi/gopherbot/models"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 // GetUserAttribute returns a AttrRet with
@@ -14,7 +14,7 @@ import (
 // name(handle), fullName, email, firstName, lastName, phone, internalID
 // TODO: supplement data with gopherbot.yaml user's table, if an
 // admin wants to supplment whats available from the protocol.
-func (r *Robot) GetUserAttribute(u, a string) *AttrRet {
+func (r *Robot) GetUserAttribute(u, a string) *robot.AttrRet {
 	a = strings.ToLower(a)
 	c := r.getContext()
 	var user string
@@ -44,11 +44,11 @@ func (r *Robot) GetUserAttribute(u, a string) *AttrRet {
 			attr = ui.Phone
 		}
 		if len(attr) > 0 {
-			return &AttrRet{attr, b.Ok}
+			return &robot.AttrRet{attr, robot.Ok}
 		}
 	}
 	attr, ret := botCfg.GetProtocolUserAttribute(user, a)
-	return &AttrRet{attr, ret}
+	return &robot.AttrRet{attr, ret}
 }
 
 // messageHeard sends a typing notification
@@ -70,16 +70,16 @@ func (c *botContext) messageHeard() {
 // Current attributes:
 // name(handle), fullName, email, firstName, lastName, phone, internalID
 // TODO: (see above)
-func (r *Robot) GetSenderAttribute(a string) *AttrRet {
+func (r *Robot) GetSenderAttribute(a string) *robot.AttrRet {
 	c := r.getContext()
 	a = strings.ToLower(a)
 	var ui *UserInfo
 	ui, _ = c.maps.user[r.User]
 	switch a {
 	case "name", "username", "handle", "user":
-		return &AttrRet{r.User, b.Ok}
+		return &robot.AttrRet{r.User, robot.Ok}
 	case "id", "internalid", "protocolid":
-		return &AttrRet{r.ProtocolUser, b.Ok}
+		return &robot.AttrRet{r.ProtocolUser, robot.Ok}
 	}
 	if ui != nil {
 		var attr string
@@ -96,7 +96,7 @@ func (r *Robot) GetSenderAttribute(a string) *AttrRet {
 			attr = ui.Phone
 		}
 		if len(attr) > 0 {
-			return &AttrRet{attr, b.Ok}
+			return &robot.AttrRet{attr, robot.Ok}
 		}
 	}
 	user := r.ProtocolUser
@@ -104,16 +104,16 @@ func (r *Robot) GetSenderAttribute(a string) *AttrRet {
 		user = r.User
 	}
 	attr, ret := botCfg.GetProtocolUserAttribute(user, a)
-	return &AttrRet{attr, ret}
+	return &robot.AttrRet{attr, ret}
 }
 
 // SendChannelMessage lets a plugin easily send a message to an arbitrary
 // channel. Use Robot.Fixed().SendChannelMessage(...) for fixed-width
 // font.
-func (r *Robot) SendChannelMessage(ch, msg string, v ...interface{}) b.RetVal {
+func (r *Robot) SendChannelMessage(ch, msg string, v ...interface{}) robot.RetVal {
 	if len(msg) == 0 {
-		r.Log(Warn, "Ignoring zero-length message in SendChannelMessage")
-		return b.Ok
+		r.Log(robot.Warn, "Ignoring zero-length message in SendChannelMessage")
+		return robot.Ok
 	}
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
@@ -133,10 +133,10 @@ func (r *Robot) SendChannelMessage(ch, msg string, v ...interface{}) b.RetVal {
 // object. Note that this will fail with UserNotFound if the connector
 // can't resolve usernames, or the username isn't mapped to a user ID in
 // the UserRoster.
-func (r *Robot) SendUserChannelMessage(u, ch, msg string, v ...interface{}) b.RetVal {
+func (r *Robot) SendUserChannelMessage(u, ch, msg string, v ...interface{}) robot.RetVal {
 	if len(msg) == 0 {
-		r.Log(Warn, "Ignoring zero-length message in SendUserChannelMessage")
-		return b.Ok
+		r.Log(robot.Warn, "Ignoring zero-length message in SendUserChannelMessage")
+		return robot.Ok
 	}
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
@@ -160,10 +160,10 @@ func (r *Robot) SendUserChannelMessage(u, ch, msg string, v ...interface{}) b.Re
 // SendUserMessage lets a plugin easily send a DM to a user. If a DM
 // fails, an error should be returned, since DMs may be used for sending
 // secret/sensitive information.
-func (r *Robot) SendUserMessage(u, msg string, v ...interface{}) b.RetVal {
+func (r *Robot) SendUserMessage(u, msg string, v ...interface{}) robot.RetVal {
 	if len(msg) == 0 {
-		r.Log(Warn, "Ignoring zero-length message in SendUserMessage")
-		return b.Ok
+		r.Log(robot.Warn, "Ignoring zero-length message in SendUserMessage")
+		return robot.Ok
 	}
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
@@ -179,10 +179,10 @@ func (r *Robot) SendUserMessage(u, msg string, v ...interface{}) b.RetVal {
 }
 
 // Reply directs a message to the user
-func (r *Robot) Reply(msg string, v ...interface{}) b.RetVal {
+func (r *Robot) Reply(msg string, v ...interface{}) robot.RetVal {
 	if len(msg) == 0 {
-		r.Log(Warn, "Ignoring zero-length message in Reply")
-		return b.Ok
+		r.Log(robot.Warn, "Ignoring zero-length message in Reply")
+		return robot.Ok
 	}
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
@@ -207,10 +207,10 @@ func (r *Robot) Reply(msg string, v ...interface{}) b.RetVal {
 }
 
 // Say just sends a message to the user or channel
-func (r *Robot) Say(msg string, v ...interface{}) b.RetVal {
+func (r *Robot) Say(msg string, v ...interface{}) robot.RetVal {
 	if len(msg) == 0 {
-		r.Log(Warn, "Ignoring zero-length message in Say")
-		return b.Ok
+		r.Log(robot.Warn, "Ignoring zero-length message in Say")
+		return robot.Ok
 	}
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)

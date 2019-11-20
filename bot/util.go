@@ -9,6 +9,8 @@ import (
 	godebug "runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 const escapeAliases = `*+^$?\[]{}`
@@ -49,7 +51,7 @@ func bracket(s string) string {
 
 func checkPanic(r *Robot, s string) {
 	if rcv := recover(); rcv != nil {
-		Log(Error, "PANIC from '%s': %s\nStack trace:%s", s, rcv, godebug.Stack())
+		Log(robot.Error, "PANIC from '%s': %s\nStack trace:%s", s, rcv, godebug.Stack())
 		r.Reply(fmt.Sprintf("OUCH! It looks like you found a bug - please ask an admin to check the log and give them this string: '%s'", s))
 		time.Sleep(2 * time.Second)
 		os.Exit(1)
@@ -76,32 +78,32 @@ func checkDirectory(cpath string) (string, bool) {
 	return "", false
 }
 
-func setFormat(format string) MessageFormat {
+func setFormat(format string) robot.MessageFormat {
 	format = strings.ToLower(format)
 	switch format {
 	case "fixed":
-		return Fixed
+		return robot.Fixed
 	case "variable":
-		return Variable
+		return robot.Variable
 	case "raw":
-		return Raw
+		return robot.Raw
 	default:
-		Log(Error, "Unknown message format '%s', defaulting to 'raw'", format)
-		return Raw
+		Log(robot.Error, "Unknown message format '%s', defaulting to 'raw'", format)
+		return robot.Raw
 	}
 }
 
-func setProtocol(proto string) Protocol {
+func setProtocol(proto string) robot.Protocol {
 	proto = strings.ToLower(proto)
 	switch proto {
 	case "slack":
-		return Slack
+		return robot.Slack
 	case "term", "terminal":
-		return Terminal
+		return robot.Terminal
 	case "rocket", "Rocket":
-		return Rocket
+		return robot.Rocket
 	default:
-		return Test
+		return robot.Test
 	}
 }
 
@@ -113,22 +115,22 @@ func updateRegexes() {
 	botCfg.RUnlock()
 	pre, post, bare, errpre, errpost, errbare := updateRegexesWrapped(name, protoMention, alias)
 	if errpre != nil {
-		Log(Error, "Error compiling pre regex: %s", errpre)
+		Log(robot.Error, "Error compiling pre regex: %s", errpre)
 	}
 	if pre != nil {
-		Log(Debug, "Setting pre regex to: %s", pre)
+		Log(robot.Debug, "Setting pre regex to: %s", pre)
 	}
 	if errpost != nil {
-		Log(Error, "Error compiling post regex: %s", errpost)
+		Log(robot.Error, "Error compiling post regex: %s", errpost)
 	}
 	if post != nil {
-		Log(Debug, "Setting post regex to: %s", post)
+		Log(robot.Debug, "Setting post regex to: %s", post)
 	}
 	if errbare != nil {
-		Log(Error, "Error compiling bare regex: %s", errbare)
+		Log(robot.Error, "Error compiling bare regex: %s", errbare)
 	}
 	if bare != nil {
-		Log(Debug, "Setting bare regex to: %s", bare)
+		Log(robot.Debug, "Setting bare regex to: %s", bare)
 	}
 	botCfg.Lock()
 	botCfg.preRegex = pre
@@ -144,7 +146,7 @@ func updateRegexesWrapped(name, mention string, alias rune) (pre, post, bare *re
 	pre = nil
 	post = nil
 	if alias == 0 && len(name) == 0 {
-		Log(Error, "Robot has no name or alias, and will only respond to direct messages")
+		Log(robot.Error, "Robot has no name or alias, and will only respond to direct messages")
 		return
 	}
 	preString := `^`

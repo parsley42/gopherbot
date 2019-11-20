@@ -7,6 +7,8 @@ import (
 	"log"
 	"regexp"
 	"sync"
+
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 // Regex for task/job/plugin/NameSpace names. NOTE: if this changes,
@@ -57,7 +59,7 @@ func getTask(t interface{}) (*BotTask, *BotPlugin, *BotJob) {
 func (tl *taskList) getTaskByName(name string) interface{} {
 	ti, ok := tl.nameMap[name]
 	if !ok {
-		Log(Error, "task '%s' not found calling getTaskByName", name)
+		Log(robot.Error, "task '%s' not found calling getTaskByName", name)
 		return nil
 	}
 	task := tl.t[ti]
@@ -167,15 +169,7 @@ type BotPlugin struct {
 	*BotTask
 }
 
-// PluginHandler is the struct a plugin registers for the Gopherbot plugin API.
-type PluginHandler struct {
-	DefaultConfig string /* A yaml-formatted multiline string defining the default Plugin configuration. It should be liberally commented for use in generating
-	custom configuration for the plugin. If a Config: section is defined, it should match the structure of the optional Config interface{} */
-	Handler func(bot *Robot, command string, args ...string) TaskRetVal // The callback function called by the robot whenever a Command is matched
-	Config  interface{}                                                 // An optional empty struct defining custom configuration for the plugin
-}
-
-var pluginHandlers = make(map[string]PluginHandler)
+var pluginHandlers = make(map[string]robot.PluginHandler)
 
 // stopRegistrations is set "true" when the bot is created to prevent registration outside of init functions
 var stopRegistrations = false
@@ -206,7 +200,7 @@ func initializePlugins() {
 			if task.Disabled {
 				continue
 			}
-			Log(Info, "Initializing plugin: %s", task.name)
+			Log(robot.Info, "Initializing plugin: %s", task.name)
 			c.callTask(t, "init")
 		}
 	} else {
