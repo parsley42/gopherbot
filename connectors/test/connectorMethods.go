@@ -15,7 +15,7 @@ type BotMessage struct {
 func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 	var i int
 	var exists bool
-	if id, ok := robot.ExtractID(u); ok {
+	if id, ok := handler.ExtractID(u); ok {
 		i, exists = userIDMap[id]
 	} else {
 		i, exists = userMap[u]
@@ -27,7 +27,7 @@ func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 }
 
 func getChannel(c string) string {
-	if ch, ok := robot.ExtractID(c); ok {
+	if ch, ok := handler.ExtractID(c); ok {
 		return strings.TrimPrefix(ch, "#")
 	}
 	return c

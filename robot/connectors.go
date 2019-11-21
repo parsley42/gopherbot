@@ -41,6 +41,9 @@ type Handler interface {
 	// Log provides a standard logging interface with a level as defined in
 	// bot/logging.go
 	Log(l LogLevel, m string, v ...interface{})
+	// Convenience function for connectors, keeps 'import "regexp" out of
+	// robot.
+	ExtractID(u string) (string, bool)
 }
 
 // Connector is the interface defining methods that should be provided by

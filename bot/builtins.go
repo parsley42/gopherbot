@@ -56,7 +56,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 		} else {
 			alias = string(aliasCh)
 		}
-		channelID, _ := robot.ExtractID(r.ProtocolChannel)
+		channelID, _ := handle.ExtractID(r.ProtocolChannel)
 		msg := make([]string, 0, 7)
 		msg = append(msg, "Here's some information about me and my running environment:")
 		msg = append(msg, fmt.Sprintf("The hostname for the server I'm running on is: %s", hostName))

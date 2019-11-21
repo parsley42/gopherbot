@@ -61,7 +61,7 @@ func (rc *rocketConnector) SendProtocolUserMessage(u string, msg string, f robot
 	var uid, dchan, user string
 	var ok bool
 	var err error
-	if uid, ok = robot.ExtractID(u); ok {
+	if uid, ok = rc.ExtractID(u); ok {
 		rc.RLock()
 		user, ok = rc.userIDNameMap[uid]
 		rc.RUnlock()

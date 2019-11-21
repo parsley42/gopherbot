@@ -14,7 +14,7 @@ func (tc *termConnector) MessageHeard(u, c string) {
 func (tc *termConnector) getUserInfo(u string) (*termUser, bool) {
 	var i int
 	var exists bool
-	if id, ok := robot.ExtractID(u); ok {
+	if id, ok := tc.ExtractID(u); ok {
 		i, exists = userIDMap[id]
 	} else {
 		i, exists = userMap[u]
@@ -25,8 +25,8 @@ func (tc *termConnector) getUserInfo(u string) (*termUser, bool) {
 	return nil, false
 }
 
-func getChannel(c string) string {
-	if ch, ok := robot.ExtractID(c); ok {
+func (tc *termConnector) getChannel(c string) string {
+	if ch, ok := tc.ExtractID(c); ok {
 		return strings.TrimPrefix(ch, "#")
 	}
 	return c
@@ -66,13 +66,13 @@ func (tc *termConnector) GetProtocolUserAttribute(u, attr string) (value string,
 
 // SendProtocolChannelMessage sends a message to a channel
 func (tc *termConnector) SendProtocolChannelMessage(ch string, msg string, f robot.MessageFormat) (ret robot.RetVal) {
-	channel := getChannel(ch)
+	channel := tc.getChannel(ch)
 	return tc.sendMessage(channel, msg, f)
 }
 
 // SendProtocolChannelMessage sends a message to a channel
 func (tc *termConnector) SendProtocolUserChannelMessage(uid, uname, ch, msg string, f robot.MessageFormat) (ret robot.RetVal) {
-	channel := getChannel(ch)
+	channel := tc.getChannel(ch)
 	msg = "@" + uname + " " + msg
 	return tc.sendMessage(channel, msg, f)
 }

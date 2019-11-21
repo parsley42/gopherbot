@@ -81,7 +81,7 @@ func (c *botContext) registerActive(parent *botContext) {
 		currentUCMaps.Unlock()
 	}
 	if len(c.ProtocolUser) == 0 && len(c.User) > 0 {
-		if robot.IDRegex.MatchString(c.User) {
+		if idRegex.MatchString(c.User) {
 			c.ProtocolUser = c.User
 		} else if ui, ok := c.maps.user[c.User]; ok {
 			c.ProtocolUser = bracket(ui.UserID)
@@ -91,7 +91,7 @@ func (c *botContext) registerActive(parent *botContext) {
 		}
 	}
 	if len(c.ProtocolChannel) == 0 && len(c.Channel) > 0 {
-		if robot.IDRegex.MatchString(c.Channel) {
+		if idRegex.MatchString(c.Channel) {
 			c.ProtocolChannel = c.Channel
 		} else if ci, ok := c.maps.channel[c.Channel]; ok {
 			c.ProtocolChannel = bracket(ci.ChannelID)

@@ -11,6 +11,9 @@ import (
 // an empty object type for passing a Handler to the connector.
 type handler struct{}
 
+// dummy var to pass a handler
+var handle = handler{}
+
 /* Handle incoming messages and other callbacks from the connector. */
 
 // GetLogLevel returns the bot's current loglevel, mainly for the

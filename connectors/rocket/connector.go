@@ -182,7 +182,7 @@ func formatMessage(msg string, f robot.MessageFormat) string {
 func (rc *rocketConnector) sendMessage(ch, msg string) (ret robot.RetVal) {
 	var chanID string
 	found := false
-	chanID, found = robot.ExtractID(ch)
+	chanID, found = rc.ExtractID(ch)
 	if !found {
 		rc.RLock()
 		chanID, found = rc.channelIDs[ch]

@@ -25,7 +25,7 @@ func (s *slackConnector) GetProtocolUserAttribute(u, attr string) (value string,
 	var userID string
 	var ok bool
 	var user *slack.User
-	if userID, ok = robot.ExtractID(u); !ok {
+	if userID, ok = s.ExtractID(u); !ok {
 		userID, ok = s.userID(u)
 	}
 	if ok {
@@ -67,7 +67,7 @@ var messages = make(chan *sendMessage)
 func (s *slackConnector) MessageHeard(user, channel string) {
 	var chanID string
 	var ok bool
-	if chanID, ok = robot.ExtractID(channel); ok {
+	if chanID, ok = s.ExtractID(channel); ok {
 		s.conn.SendMessage(s.conn.NewTypingMessage(chanID))
 	}
 }
@@ -147,7 +147,7 @@ func (s *slackConnector) SetUserMap(umap map[string]string) {
 // SendProtocolChannelMessage sends a message to a channel
 func (s *slackConnector) SendProtocolChannelMessage(ch string, msg string, f robot.MessageFormat) (ret robot.RetVal) {
 	msgs := s.slackifyMessage("", msg, f)
-	if chanID, ok := robot.ExtractID(ch); ok {
+	if chanID, ok := s.ExtractID(ch); ok {
 		s.sendMessages(msgs, chanID, f)
 		return
 	}
@@ -163,14 +163,14 @@ func (s *slackConnector) SendProtocolChannelMessage(ch string, msg string, f rob
 func (s *slackConnector) SendProtocolUserChannelMessage(uid, u, ch, msg string, f robot.MessageFormat) (ret robot.RetVal) {
 	var userID, chanID string
 	var ok bool
-	if chanID, ok = robot.ExtractID(ch); !ok {
+	if chanID, ok = s.ExtractID(ch); !ok {
 		chanID, ok = s.chanID(ch)
 	}
 	if !ok {
 		s.Log(robot.Error, "slack channel ID not found for: %s", ch)
 		return robot.ChannelNotFound
 	}
-	if userID, ok = robot.ExtractID(uid); !ok {
+	if userID, ok = s.ExtractID(uid); !ok {
 		userID, ok = s.userID(u)
 	}
 	if !ok {
@@ -188,7 +188,7 @@ func (s *slackConnector) SendProtocolUserChannelMessage(uid, u, ch, msg string, 
 func (s *slackConnector) SendProtocolUserMessage(u string, msg string, f robot.MessageFormat) (ret robot.RetVal) {
 	var userID string
 	var ok bool
-	if userID, ok = robot.ExtractID(u); !ok {
+	if userID, ok = s.ExtractID(u); !ok {
 		userID, ok = s.userID(u)
 	}
 	if !ok {

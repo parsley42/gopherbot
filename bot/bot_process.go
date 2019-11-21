@@ -103,7 +103,6 @@ func initBot(cpath, epath string, logger *log.Logger) {
 	botCfg.done = make(chan bool)
 	botCfg.shuttingDown = false
 
-	handle := handler{}
 	c := &botContext{
 		environment: make(map[string]string),
 	}
@@ -138,8 +137,7 @@ func initBot(cpath, epath string, logger *log.Logger) {
 	if !listening {
 		listening = true
 		go func() {
-			h := handler{}
-			http.Handle("/json", h)
+			http.Handle("/json", handle)
 			Log(robot.Fatal, "error serving '/json': %s", http.ListenAndServe(botCfg.port, nil))
 		}()
 	}
