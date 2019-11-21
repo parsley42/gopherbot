@@ -5,9 +5,10 @@
 commit := $(shell git rev-parse --short HEAD)
 
 GOOS ?= linux
+CGO ?= 1
 
 gopherbot: main.go bot/* brains/*/* connectors/*/* goplugins/*/* history/*/*
-	CGO_ENABLED=1 GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -ldflags "-X main.Commit=$(commit)" -tags 'netgo osusergo static_build' -o gopherbot
+	CGO_ENABLED=${CGO} GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -ldflags "-X main.Commit=$(commit)" -tags 'netgo osusergo static_build' -o gopherbot
 
 clean:
 	rm -f gopherbot

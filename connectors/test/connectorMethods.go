@@ -15,7 +15,7 @@ type BotMessage struct {
 func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 	var i int
 	var exists bool
-	if id, ok := handler.ExtractID(u); ok {
+	if id, ok := tc.ExtractID(u); ok {
 		i, exists = userIDMap[id]
 	} else {
 		i, exists = userMap[u]
@@ -26,8 +26,8 @@ func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 	return nil, false
 }
 
-func getChannel(c string) string {
-	if ch, ok := handler.ExtractID(c); ok {
+func (tc *TestConnector) getChannel(c string) string {
+	if ch, ok := tc.ExtractID(c); ok {
 		return strings.TrimPrefix(ch, "#")
 	}
 	return c
@@ -73,7 +73,7 @@ func (tc *TestConnector) GetProtocolUserAttribute(u, attr string) (value string,
 
 // SendProtocolChannelMessage sends a message to a channel
 func (tc *TestConnector) SendProtocolChannelMessage(ch string, mesg string, f robot.MessageFormat) (ret robot.RetVal) {
-	channel := getChannel(ch)
+	channel := tc.getChannel(ch)
 	msg := &BotMessage{
 		User:    "",
 		Channel: channel,
@@ -85,7 +85,7 @@ func (tc *TestConnector) SendProtocolChannelMessage(ch string, mesg string, f ro
 
 // SendProtocolUserChannelMessage sends a message to a user in a channel
 func (tc *TestConnector) SendProtocolUserChannelMessage(uid, uname, ch, mesg string, f robot.MessageFormat) (ret robot.RetVal) {
-	channel := getChannel(ch)
+	channel := tc.getChannel(ch)
 	msg := &BotMessage{
 		User:    uname,
 		Channel: channel,
