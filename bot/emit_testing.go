@@ -5,6 +5,8 @@ package bot
 import (
 	"path"
 	"runtime"
+
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 var events = make(chan Event, 16)

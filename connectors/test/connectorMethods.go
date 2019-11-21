@@ -3,19 +3,19 @@ package test
 import (
 	"strings"
 
-	"github.com/lnxjedi/gopherbot/bot"
+	"github.com/lnxjedi/gopherbot/robot"
 )
 
 // BotMessage is for receiving messages from the robot
 type BotMessage struct {
 	User, Channel, Message string
-	Format                 bot.MessageFormat
+	Format                 robot.MessageFormat
 }
 
 func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 	var i int
 	var exists bool
-	if id, ok := bot.ExtractID(u); ok {
+	if id, ok := robot.ExtractID(u); ok {
 		i, exists = userIDMap[id]
 	} else {
 		i, exists = userMap[u]
@@ -27,7 +27,7 @@ func (tc *TestConnector) getUserInfo(u string) (*testUser, bool) {
 }
 
 func getChannel(c string) string {
-	if ch, ok := bot.ExtractID(c); ok {
+	if ch, ok := robot.ExtractID(c); ok {
 		return strings.TrimPrefix(ch, "#")
 	}
 	return c
@@ -46,33 +46,33 @@ func (tc *TestConnector) SetUserMap(map[string]string) {
 
 // GetProtocolUserAttribute returns a string attribute or nil if slack doesn't
 // have that information
-func (tc *TestConnector) GetProtocolUserAttribute(u, attr string) (value string, ret bot.RetVal) {
+func (tc *TestConnector) GetProtocolUserAttribute(u, attr string) (value string, ret robot.RetVal) {
 	var user *testUser
 	var exists bool
 	if user, exists = tc.getUserInfo(u); !exists {
-		return "", bot.UserNotFound
+		return "", robot.UserNotFound
 	}
 	switch attr {
 	case "email":
-		return user.Email, bot.Ok
+		return user.Email, robot.Ok
 	case "internalid":
-		return user.InternalID, bot.Ok
+		return user.InternalID, robot.Ok
 	case "realname", "fullname", "real name", "full name":
-		return user.FullName, bot.Ok
+		return user.FullName, robot.Ok
 	case "firstname", "first name":
-		return user.FirstName, bot.Ok
+		return user.FirstName, robot.Ok
 	case "lastname", "last name":
-		return user.LastName, bot.Ok
+		return user.LastName, robot.Ok
 	case "phone":
-		return user.Phone, bot.Ok
+		return user.Phone, robot.Ok
 	// that's all the attributes we can currently get from slack
 	default:
-		return "", bot.AttributeNotFound
+		return "", robot.AttributeNotFound
 	}
 }
 
 // SendProtocolChannelMessage sends a message to a channel
-func (tc *TestConnector) SendProtocolChannelMessage(ch string, mesg string, f bot.MessageFormat) (ret bot.RetVal) {
+func (tc *TestConnector) SendProtocolChannelMessage(ch string, mesg string, f robot.MessageFormat) (ret robot.RetVal) {
 	channel := getChannel(ch)
 	msg := &BotMessage{
 		User:    "",
@@ -84,7 +84,7 @@ func (tc *TestConnector) SendProtocolChannelMessage(ch string, mesg string, f bo
 }
 
 // SendProtocolUserChannelMessage sends a message to a user in a channel
-func (tc *TestConnector) SendProtocolUserChannelMessage(uid, uname, ch, mesg string, f bot.MessageFormat) (ret bot.RetVal) {
+func (tc *TestConnector) SendProtocolUserChannelMessage(uid, uname, ch, mesg string, f robot.MessageFormat) (ret robot.RetVal) {
 	channel := getChannel(ch)
 	msg := &BotMessage{
 		User:    uname,
@@ -96,11 +96,11 @@ func (tc *TestConnector) SendProtocolUserChannelMessage(uid, uname, ch, mesg str
 }
 
 // SendProtocolUserMessage sends a direct message to a user
-func (tc *TestConnector) SendProtocolUserMessage(u string, mesg string, f bot.MessageFormat) (ret bot.RetVal) {
+func (tc *TestConnector) SendProtocolUserMessage(u string, mesg string, f robot.MessageFormat) (ret robot.RetVal) {
 	var user *testUser
 	var exists bool
 	if user, exists = tc.getUserInfo(u); !exists {
-		return bot.UserNotFound
+		return robot.UserNotFound
 	}
 	msg := &BotMessage{
 		User:    user.Name,
@@ -113,6 +113,6 @@ func (tc *TestConnector) SendProtocolUserMessage(u string, mesg string, f bot.Me
 
 // JoinChannel joins a channel given it's human-readable name, e.g. "general"
 // Only useful for connectors that require it, a noop otherwise
-func (tc *TestConnector) JoinChannel(c string) (ret bot.RetVal) {
-	return bot.Ok
+func (tc *TestConnector) JoinChannel(c string) (ret robot.RetVal) {
+	return robot.Ok
 }

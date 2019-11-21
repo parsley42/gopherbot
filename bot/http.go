@@ -130,14 +130,6 @@ type extns struct {
 	Histories int
 }
 
-type attrRet robot.AttrRet
-
-// Types for returning values
-
-func (bar *attrRet) String() string {
-	return bar.Attribute
-}
-
 // These are only for json marshalling
 type boolresponse struct {
 	Boolean bool

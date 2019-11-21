@@ -7,6 +7,10 @@ type AttrRet struct {
 	RetVal
 }
 
+func (a AttrRet) String() string {
+	return a.Attribute
+}
+
 // Message is passed to each task as it runs, initialized from the botContext.
 // Tasks can copy and modify the Robot without affecting the botContext.
 type Message struct {
