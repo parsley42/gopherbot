@@ -20,8 +20,8 @@ type config struct {
 }
 
 // Define the handler function
-func ping(r robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	m := r.GetMessage()
+func ping(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
+	r := m.(bot.Robot)
 	var cfg *config
 	// The plugin can handle multiple different commands
 	switch command {
@@ -35,11 +35,11 @@ func ping(r robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 	case "ping":
 		r.Fixed().Reply("PONG")
 	case "whoami":
-		u := m.User
-		uid := m.ProtocolUser
-		c := m.Channel
-		cid := m.ProtocolChannel
-		p := m.Protocol
+		u := r.User
+		uid := r.ProtocolUser
+		c := r.Channel
+		cid := r.ProtocolChannel
+		p := r.Protocol
 		e := r.GetSenderAttribute("email")
 		var msg string
 		if e.RetVal == robot.Ok {

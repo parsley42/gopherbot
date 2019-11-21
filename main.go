@@ -44,7 +44,7 @@ import (
 	// *** Included Go plugins, of varying quality
 
 	_ "github.com/lnxjedi/gopherbot/goplugins/help"
-	_ "github.com/lnxjedi/gopherbot/goplugins/knock"
+	// _ "github.com/lnxjedi/gopherbot/goplugins/knock"
 	_ "github.com/lnxjedi/gopherbot/goplugins/links"
 	_ "github.com/lnxjedi/gopherbot/goplugins/lists"
 	_ "github.com/lnxjedi/gopherbot/goplugins/meme"

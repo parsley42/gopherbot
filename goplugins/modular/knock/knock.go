@@ -1,11 +1,11 @@
-// Package knock implements a simple demonstrator plugin for using Gopherbot's
+package main
+
+// knock implements a simple demonstrator plugin for using Gopherbot's
 // WaitForReply function to tell knock-knock jokes.
-package knock
 
 import (
 	"strings"
 
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
@@ -131,9 +131,18 @@ func knock(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 	return
 }
 
-func init() {
-	bot.RegisterPlugin("knock", robot.PluginHandler{
-		Handler: knock,
-		Config:  &JokeConfig{},
-	})
+var knockhandler = robot.PluginHandler{
+	Handler: knock,
+	Config:  &JokeConfig{},
+}
+var knockspec = robot.PluginSpec{
+	Name:    "knock",
+	Handler: knockhandler,
+}
+
+// GetPlugins is the common exported symbol for loadable go plugins.
+func GetPlugins() []robot.PluginSpec {
+	return []robot.PluginSpec{
+		knockspec,
+	}
 }

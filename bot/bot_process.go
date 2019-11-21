@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"plugin"
 	"regexp"
 	"sync"
 	"syscall"
@@ -91,7 +93,6 @@ var listening bool // for tests where initBot runs multiple times
 // initBot sets up the global robot and loads
 // configuration.
 func initBot(cpath, epath string, logger *log.Logger) {
-	stopRegistrations = true
 	// Seed the pseudo-random number generator, for plugin IDs, RandomString, etc.
 	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -109,6 +110,28 @@ func initBot(cpath, epath string, logger *log.Logger) {
 	if err := c.loadConfig(true); err != nil {
 		Log(robot.Fatal, "Error loading initial configuration: %v", err)
 	}
+
+	// Load pluggable modules and call "GetPlugins", "GetConnectors", etc., then
+	// register them.
+	// For the moment, hard-code "knock"
+	lp := filepath.Join(installPath, "goplugins/modular/knock/knock.so")
+	if k, err := plugin.Open(lp); err == nil {
+		if gp, err := k.Lookup("GetPlugins"); err == nil {
+			gf := gp.(func() []robot.PluginSpec)
+			pl := gf()
+			for _, pspec := range pl {
+				Log(robot.Info, "Registered plugin '%s' from loadable module '%s'", pspec.Name, lp)
+				RegisterPlugin(pspec.Name, pspec.Handler)
+			}
+		} else {
+			Log(robot.Debug, "Symbol 'GetPlugins' not found in loadable module '%s': %v", lp, err)
+		}
+	} else {
+		Log(robot.Error, "Loading module '%s': %v", lp, err)
+	}
+
+	// All pluggables registered, ok to stop registrations
+	stopRegistrations = true
 
 	if len(botCfg.brainProvider) > 0 {
 		if bprovider, ok := brains[botCfg.brainProvider]; !ok {

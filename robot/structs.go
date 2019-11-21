@@ -48,3 +48,9 @@ type PluginHandler struct {
 	Handler func(r Robot, command string, args ...string) TaskRetVal // The callback function called by the robot whenever a Command is matched
 	Config  interface{}                                              // An optional empty struct defining custom configuration for the plugin
 }
+
+// PluginSpec used by loadable plugins that return a slice of PluginSpecs
+type PluginSpec struct {
+	Name    string
+	Handler PluginHandler
+}
