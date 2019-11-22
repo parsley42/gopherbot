@@ -3,7 +3,6 @@ package bot
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -448,37 +447,14 @@ func (c *botContext) getEnvironment(task *BotTask) map[string]string {
 // to the task.
 func getTaskPath(task *BotTask) (tpath string, err error) {
 	if len(task.Path) == 0 {
-		err := fmt.Errorf("Path empty for external task: %s", task.name)
+		err := fmt.Errorf("path empty for external task: %s", task.name)
 		Log(robot.Error, err.Error())
 		return "", err
 	}
-	var taskPath string
-	if filepath.IsAbs(task.Path) {
-		taskPath = task.Path
-		_, err := os.Stat(taskPath)
-		if err == nil {
-			Log(robot.Debug, "Using fully specified path to plugin:", taskPath)
-			return taskPath, nil
-		}
-		err = fmt.Errorf("Invalid path for external plugin: %s (%v)", taskPath, err)
+	tpath, err = getObjectPath(task.Path)
+	if err != nil {
+		err = fmt.Errorf("couldn't locate external plugin %s: %v", task.name, err)
 		Log(robot.Error, err.Error())
-		return "", err
 	}
-	if len(configPath) > 0 {
-		taskPath = filepath.Join(configPath, task.Path)
-		_, err := os.Stat(taskPath)
-		if err == nil {
-			// The one case where relpath is true
-			Log(robot.Debug, "Using external plugin from configPath: %s", taskPath)
-			return taskPath, nil
-		}
-	}
-	taskPath = filepath.Join(installPath, task.Path)
-	if _, err := os.Stat(taskPath); err == nil {
-		Log(robot.Debug, "Using stock external plugin: %s", taskPath)
-		return taskPath, nil
-	}
-	err = fmt.Errorf("Couldn't locate external plugin %s: %v", task.name, err)
-	Log(robot.Error, err.Error())
-	return "", err
+	return
 }

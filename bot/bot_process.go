@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"plugin"
 	"regexp"
 	"sync"
 	"syscall"
@@ -75,6 +73,7 @@ var botCfg struct {
 	externalPlugins      []ExternalTask        // List of external plugins to load
 	externalJobs         []ExternalTask        // List of external jobs to load
 	externalTasks        []ExternalTask        // List of external tasks to load
+	loadableModules      []LoadableModule      // List of loadable modules to load
 	ScheduledJobs        []ScheduledTask       // List of scheduled tasks
 	port                 string                // Localhost port to listen on
 	stop                 chan struct{}         // stop channel for stopping the connector
@@ -111,24 +110,8 @@ func initBot(cpath, epath string, logger *log.Logger) {
 		Log(robot.Fatal, "Error loading initial configuration: %v", err)
 	}
 
-	// Load pluggable modules and call "GetPlugins", "GetConnectors", etc., then
-	// register them.
-	// For the moment, hard-code "knock"
-	lp := filepath.Join(installPath, "goplugins/knock.so")
-	if k, err := plugin.Open(lp); err == nil {
-		if gp, err := k.Lookup("GetPlugins"); err == nil {
-			gf := gp.(func() []robot.PluginSpec)
-			pl := gf()
-			for _, pspec := range pl {
-				Log(robot.Info, "Registered plugin '%s' from loadable module '%s'", pspec.Name, lp)
-				RegisterPlugin(pspec.Name, pspec.Handler)
-			}
-		} else {
-			Log(robot.Debug, "Symbol 'GetPlugins' not found in loadable module '%s': %v", lp, err)
-		}
-	} else {
-		Log(robot.Error, "Loading module '%s': %v", lp, err)
-	}
+	// loadModules for go loadable modules; a no-op for static builds
+	loadModules()
 
 	// All pluggables registered, ok to stop registrations
 	stopRegistrations = true

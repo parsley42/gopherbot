@@ -87,6 +87,12 @@ type ExternalTask struct {
 	Parameters                         []Parameter
 }
 
+// LoadableModule struct for loading external modules.
+type LoadableModule struct {
+	Name, Path, Description, NameSpace string
+	Disabled                           bool
+}
+
 // ScheduledTask items defined in gopherbot.yaml, mostly for scheduled jobs
 type ScheduledTask struct {
 	Schedule string // timespec for https://godoc.org/github.com/robfig/cron
