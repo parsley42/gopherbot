@@ -114,7 +114,7 @@ func initBot(cpath, epath string, logger *log.Logger) {
 	// Load pluggable modules and call "GetPlugins", "GetConnectors", etc., then
 	// register them.
 	// For the moment, hard-code "knock"
-	lp := filepath.Join(installPath, "goplugins/modular/knock/knock.so")
+	lp := filepath.Join(installPath, "goplugins/knock.so")
 	if k, err := plugin.Open(lp); err == nil {
 		if gp, err := k.Lookup("GetPlugins"); err == nil {
 			gf := gp.(func() []robot.PluginSpec)

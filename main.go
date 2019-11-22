@@ -44,14 +44,10 @@ import (
 	// *** Included Go plugins, of varying quality
 
 	_ "github.com/lnxjedi/gopherbot/goplugins/help"
-	// _ "github.com/lnxjedi/gopherbot/goplugins/knock"
 	_ "github.com/lnxjedi/gopherbot/goplugins/links"
 	_ "github.com/lnxjedi/gopherbot/goplugins/lists"
 	_ "github.com/lnxjedi/gopherbot/goplugins/meme"
 	_ "github.com/lnxjedi/gopherbot/goplugins/ping"
-
-	// Helpful plugin for a Slack bot admin
-	_ "github.com/lnxjedi/gopherbot/goplugins/slackutil"
 
 	/* Enable profiling. You can shrink the binary by removing this, but if the
 	   robot ever stops responding for any reason, it's handy for getting a
