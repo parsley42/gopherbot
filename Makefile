@@ -4,10 +4,10 @@
 
 commit := $(shell git rev-parse --short HEAD)
 
-# MODULES = connectors/slack.so connectors/rocket.so connectors/terminal.so \
+# MODULES = connectors/rocket.so connectors/terminal.so \
 #	goplugins/duo.so goplugins/knock.so goplugins/totp.so brains/dynamodb.so
 
-MODULES = goplugins/knock.so
+MODULES = goplugins/knock.so connectors/slack.so
 
 GOOS ?= linux
 CGO ?= 0

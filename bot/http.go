@@ -220,7 +220,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	privCheck(fmt.Sprintf("http method %s", f.FuncName))
 
 	// Generate a synthetic Robot for access to it's methods
-	proto, _ := setProtocol(f.Protocol)
+	proto, _ := getProtocol(f.Protocol)
 	r := Robot{
 		&robot.Message{
 			User:            f.User,

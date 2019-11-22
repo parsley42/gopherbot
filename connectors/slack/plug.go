@@ -3,7 +3,6 @@ package slack
 import (
 	"regexp"
 
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 	"github.com/nlopes/slack"
 )
@@ -29,8 +28,6 @@ func slackutil(r robot.Robot, command string, args ...string) (retval robot.Task
 	return
 }
 
-func init() {
-	bot.RegisterPlugin("slackutil", robot.PluginHandler{
-		Handler: slackutil,
-	})
+var slackplugin = robot.PluginHandler{
+	Handler: slackutil,
 }

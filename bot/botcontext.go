@@ -55,7 +55,7 @@ func getBotContextInt(idx int) *botContext {
 func (c *botContext) registerActive(parent *botContext) {
 	botCfg.RLock()
 	if c.Incoming != nil {
-		c.Protocol, _ = setProtocol(c.Incoming.Protocol)
+		c.Protocol, _ = getProtocol(c.Incoming.Protocol)
 	}
 	c.Format = botCfg.defaultMessageFormat
 	c.environment["GOPHER_HTTP_POST"] = "http://" + botCfg.port

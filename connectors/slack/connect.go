@@ -6,7 +6,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 	"github.com/nlopes/slack"
 )
@@ -22,10 +21,6 @@ type config struct {
 
 var lock sync.Mutex // package var lock
 var started bool    // set when connector is started
-
-func init() {
-	bot.RegisterConnector("slack", Initialize)
-}
 
 // Initialize starts the connection, sets up and returns the connector object
 func Initialize(r robot.Handler, l *log.Logger) robot.Connector {

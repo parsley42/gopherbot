@@ -3,6 +3,8 @@
 package bot
 
 import (
+	"log"
+	"path/filepath"
 	"plugin"
 
 	"github.com/lnxjedi/gopherbot/robot"
@@ -14,6 +16,9 @@ func loadModules() {
 	for _, m := range botCfg.loadableModules {
 		loadModule(m.Name, m.Path)
 	}
+	_, pmod := getProtocol(botCfg.protocol)
+	ppath := filepath.Join("connectors", pmod+".so")
+	loadModule(pmod, ppath)
 }
 
 // loadModule loads a module and registers it's contents
@@ -24,15 +29,25 @@ func loadModule(name, path string) {
 		return
 	}
 	if k, err := plugin.Open(lp); err == nil {
+		// look for and register plugins
 		if gp, err := k.Lookup("GetPlugins"); err == nil {
 			gf := gp.(func() []robot.PluginSpec)
 			pl := gf()
 			for _, pspec := range pl {
-				Log(robot.Info, "registered plugin '%s' from loadable module '%s'", pspec.Name, path)
+				Log(robot.Info, "registering plugin '%s' from loadable module '%s'", pspec.Name, path)
 				RegisterPlugin(pspec.Name, pspec.Handler)
 			}
 		} else {
 			Log(robot.Debug, "symbol 'GetPlugins' not found in loadable module '%s': %v", path, err)
+		}
+		// look for and register connector
+		if ci, err := k.Lookup("GetInitializer"); err == nil {
+			cif := ci.(func() (string, func(robot.Handler, *log.Logger) robot.Connector))
+			name, initializer := cif()
+			Log(robot.Info, "registering connector '%s' from loadable module '%s'", name, path)
+			RegisterConnector(name, initializer)
+		} else {
+			Log(robot.Debug, "symbol 'GetInitializer' not found in loadable module '%s': %v", path, err)
 		}
 	} else {
 		Log(robot.Error, "loading module '%s': %v", lp, err)
