@@ -27,9 +27,9 @@ type Robot interface {
 	RandomInt(n int) int
 	RandomString(s []string) string
 	Pause(s float64)
-	PromptForReply(regexID string, prompt string) (string, RetVal)
-	PromptUserForReply(regexID string, user string, prompt string) (string, RetVal)
-	PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, RetVal)
+	PromptForReply(regexID string, prompt string, v ...interface{}) (string, RetVal)
+	PromptUserForReply(regexID string, user string, prompt string, v ...interface{}) (string, RetVal)
+	PromptUserChannelForReply(regexID string, user string, channel string, prompt string, v ...interface{}) (string, RetVal)
 	CheckoutDatum(key string, datum interface{}, rw bool) (locktoken string, exists bool, ret RetVal)
 	CheckinDatum(key, locktoken string)
 	UpdateDatum(key, locktoken string, datum interface{}) (ret RetVal)

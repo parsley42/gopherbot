@@ -2,7 +2,6 @@
 package slackutil
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/lnxjedi/gopherbot/bot"
@@ -26,7 +25,7 @@ func slackutil(r robot.Robot, command string, args ...string) (retval robot.Task
 		}
 		sl := m.Incoming.MessageObject.(*slack.MessageEvent)
 		sid := idre.FindStringSubmatch(sl.Text)[1]
-		r.Say(fmt.Sprintf("User %s has Slack internal ID %s", args[0], sid))
+		r.Say("User %s has Slack internal ID %s", args[0], sid)
 	}
 	return
 }

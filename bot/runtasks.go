@@ -264,7 +264,7 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 			}
 			if adminRequired {
 				if !r.CheckAdmin() {
-					r.Say(fmt.Sprintf("Sorry, '%s/%s' is only available to bot administrators", task.name, command))
+					r.Say("Sorry, '%s/%s' is only available to bot administrators", task.name, command)
 					ret = robot.Fail
 					break
 				}
@@ -342,13 +342,13 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 					runQueues.Unlock()
 					Log(robot.Debug, "Exclusive task in progress, queueing bot #%d and waiting; queue length: %d", c.id, len(queue))
 					if (isJob && !job.Quiet) || ptype == jobCmd {
-						c.makeRobot().Say(fmt.Sprintf("Queueing task '%s' in pipeline '%s'", task.name, c.pipeName))
+						c.makeRobot().Say("Queueing task '%s' in pipeline '%s'", task.name, c.pipeName)
 					}
 					// Now we block until kissed by a Handsome Prince
 					<-wakeUp
 					Log(robot.Debug, "Bot #%d in queue waking up and re-starting task '%s'", c.id, task.name)
 					if (job != nil && !job.Quiet) || ptype == jobCmd {
-						c.makeRobot().Say(fmt.Sprintf("Re-starting queued task '%s' in pipeline '%s'", task.name, c.pipeName))
+						c.makeRobot().Say("Re-starting queued task '%s' in pipeline '%s'", task.name, c.pipeName)
 					}
 					// Decrement the index so this task runs again
 					i--

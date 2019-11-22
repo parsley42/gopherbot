@@ -86,7 +86,7 @@ func links(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 				r.RememberContext("link", last)
 			}
 		} else {
-			r.Say(fmt.Sprintf("Sorry, I don't have any links for \"%s\"", args[0]))
+			r.Say("Sorry, I don't have any links for \"%s\"", args[0])
 		}
 	case "list":
 		linkslist := make([]string, 0, 7)
@@ -117,7 +117,7 @@ func links(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		if exists {
 			prompted = true
 			r.CheckinDatum(datumKey, lock)
-			r.Say(fmt.Sprintf("I already have that link associated with: %s", current))
+			r.Say("I already have that link associated with: %s", current)
 			rep, ret := r.PromptForReply("YesNo", "Do you want me to replace it?")
 			if ret == robot.Ok {
 				switch strings.ToLower(rep) {
@@ -165,7 +165,7 @@ func links(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		link := args[0]
 		_, ok := links[link]
 		if !ok {
-			r.Say(fmt.Sprintf("I don't have the link %s", link))
+			r.Say("I don't have the link %s", link)
 			return
 		}
 		delete(links, link)
@@ -175,7 +175,7 @@ func links(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 			r.Reply("Crud. I had a problem saving the links - you can try again or ask an administrator to check the log")
 			return
 		}
-		r.Say(fmt.Sprintf("Ok, I removed the link %s", link))
+		r.Say("Ok, I removed the link %s", link)
 		updated = true
 	}
 	return

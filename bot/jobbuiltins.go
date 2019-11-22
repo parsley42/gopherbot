@@ -77,7 +77,7 @@ func emailhistory(r Robot, hp robot.HistoryProvider, user, address, spec string,
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Error getting history %d for task '%s': %v", run, spec, err)
-		r.Say(fmt.Sprintf("History %d for '%s' not available", run, spec))
+		r.Say("History %d for '%s' not available", run, spec)
 		return
 	}
 	lr := io.LimitReader(f, maxMailBody)
@@ -112,7 +112,7 @@ func pagehistory(r Robot, hp robot.HistoryProvider, spec string, run int) (retva
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Error getting history %d for task '%s': %v", run, spec, err)
-		r.Say(fmt.Sprintf("History %d for '%s' not available", run, spec))
+		r.Say("History %d for '%s' not available", run, spec)
 		return
 	}
 	var line string
@@ -216,7 +216,7 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		key := histPrefix + histSpec
 		_, _, ret := checkoutDatum(key, &jh, false)
 		if ret != robot.Ok {
-			r.Say(fmt.Sprintf("No history found for '%s'", histSpec))
+			r.Say("No history found for '%s'", histSpec)
 			return
 		}
 		if len(latest) == 0 && len(index) == 0 {
@@ -244,7 +244,7 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 			}
 		}
 		if len(jh.Histories) == 0 {
-			r.Say(fmt.Sprintf("No history found for '%s'", histSpec))
+			r.Say("No history found for '%s'", histSpec)
 			return
 		}
 
@@ -288,7 +288,7 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 			}
 		case "link":
 			if link, ok := hp.GetHistoryURL(histSpec, idx); ok {
-				r.Say(fmt.Sprintf("Here you go: %s", link))
+				r.Say("Here you go: %s", link)
 				return
 			}
 			r.Say("No link available")
@@ -386,13 +386,13 @@ func (c *botContext) jobAvailable(taskName string) interface{} {
 	r := c.makeRobot()
 	t := c.tasks.getTaskByName(taskName)
 	if t == nil {
-		r.Say(fmt.Sprintf("Sorry, I don't have a task named '%s' configured", taskName))
+		r.Say("Sorry, I don't have a task named '%s' configured", taskName)
 		return nil
 	}
 	task, _, job := getTask(t)
 	isJob := job != nil
 	if !isJob {
-		r.Say(fmt.Sprintf("Sorry, '%s' isn't a job", taskName))
+		r.Say("Sorry, '%s' isn't a job", taskName)
 		return nil
 	}
 	if c.automaticTask {
@@ -402,7 +402,7 @@ func (c *botContext) jobAvailable(taskName string) interface{} {
 	// job, and should be available regardless of channel.
 	if !c.jobInitialized && r.Channel != task.Channel {
 		c.debugTask(task, fmt.Sprintf("not available in channel '%s'", task.Channel), false)
-		r.Say(fmt.Sprintf("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel))
+		r.Say("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel)
 		return nil
 	}
 	if task.RequireAdmin {
@@ -417,7 +417,7 @@ func (c *botContext) jobAvailable(taskName string) interface{} {
 			}
 		}
 		if !isAdmin {
-			r.Say(fmt.Sprintf("Sorry, '%s' is only available to bot administrators", taskName))
+			r.Say("Sorry, '%s' is only available to bot administrators", taskName)
 			return nil
 		}
 	}

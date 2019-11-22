@@ -102,7 +102,7 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 			r := c.makeRobot()
 			task, _, job := getTask(t)
 			if task.Disabled {
-				r.Say(fmt.Sprintf("Job '%s' is disabled: %s", jobName, task.reason))
+				r.Say("Job '%s' is disabled: %s", jobName, task.reason)
 				c.deregister()
 				return
 			}
@@ -120,13 +120,13 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 			if len(matches[0][2]) > 0 { // arguments supplied with `run job foo bar baz`, check match to arguments
 				args = strings.Split(matches[0][2], " ")
 				if len(args) != len(job.Arguments) {
-					r.Say(fmt.Sprintf("Wrong number of arguments for job '%s', %d configured but %d given", jobName, len(job.Arguments), len(args)))
+					r.Say("Wrong number of arguments for job '%s', %d configured but %d given", jobName, len(job.Arguments), len(args))
 					c.deregister()
 					return
 				}
 				for i, arg := range args {
 					if !job.Arguments[i].re.MatchString(arg) {
-						r.Say(fmt.Sprintf("'%s' doesn't match the pattern for argument '%s'", arg, job.Arguments[i].Label))
+						r.Say("'%s' doesn't match the pattern for argument '%s'", arg, job.Arguments[i].Label)
 						c.deregister()
 						return
 					}
@@ -143,11 +143,11 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 						for t = 1; t < 3; t++ {
 							arg, ret := r.PromptForReply(argspec.Label, fmt.Sprintf("What's the value for '%s'?", argspec.Label))
 							if ret == robot.ReplyNotMatched {
-								r.Say(fmt.Sprintf("That doesn't match the pattern for argument '%s'", argspec.Label))
+								r.Say("That doesn't match the pattern for argument '%s'", argspec.Label)
 							} else {
 								if ret != robot.Ok {
 									r.Log(robot.Warn, "failed getting arguments running job '%s': %s", jobName, ret)
-									r.Say(fmt.Sprintf("(not running job '%s')", jobName))
+									r.Say("(not running job '%s')", jobName)
 									c.deregister()
 									return
 								}

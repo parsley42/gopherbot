@@ -115,7 +115,7 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 										s.timestamp = ts
 										shortTermMemories.m[ctx] = s
 									} else {
-										r.Say(fmt.Sprintf("Sorry, I don't remember which %s we were talking about - please re-enter your command and be more specific", contextLabel))
+										r.Say("Sorry, I don't remember which %s we were talking about - please re-enter your command and be more specific", contextLabel)
 										shortTermMemories.Unlock()
 										return true
 									}

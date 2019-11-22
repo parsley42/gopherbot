@@ -3,7 +3,6 @@
 package groups
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -79,7 +78,7 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 		cfgspec, ok = groupCfg.Groups[group]
 		if !ok {
 			if command != "authorize" {
-				r.Say(fmt.Sprintf("I don't have a \"%s\" group configured", group))
+				r.Say("I don't have a \"%s\" group configured", group)
 				return
 			}
 			r.Log(robot.Warn, "Groups plugin called for non-configured group: %s", group)
@@ -142,7 +141,7 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 	case "remove":
 		user := args[0]
 		if len(memspec.Users) == 0 {
-			r.Say(fmt.Sprintf("There are no dynamic users in the \"%s\" group", group))
+			r.Say("There are no dynamic users in the \"%s\" group", group)
 			return
 		}
 		found := false
@@ -157,14 +156,14 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 					r.Reply("Crud. I had a problem saving my groups - somebody better check the log")
 				} else {
 					r.Log(robot.Audit, "User %s removed user %s from group %s", m.User, user, group)
-					r.Say(fmt.Sprintf("Ok, I removed %s from the %s group", user, group))
+					r.Say("Ok, I removed %s from the %s group", user, group)
 					updated = true
 				}
 				break
 			}
 		}
 		if !found {
-			r.Say(fmt.Sprintf("%s isn't a dynamic member of the %s group (but may be a configured user)", user, group))
+			r.Say("%s isn't a dynamic member of the %s group (but may be a configured user)", user, group)
 			return
 		}
 	case "empty":
@@ -198,7 +197,7 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 			r.Say("You're not the administrator of any groups")
 			return
 		}
-		r.Say(fmt.Sprintf("Here are the groups you're an administrator for:\n%s", strings.Join(groups, "\n")))
+		r.Say("Here are the groups you're an administrator for:\n%s", strings.Join(groups, "\n"))
 	case "show":
 		members := make([]string, 0, 10)
 		for _, user := range cfgspec.Administrators {
@@ -211,10 +210,10 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 			members, _ = addnew(members, user)
 		}
 		if len(members) == 0 {
-			r.Say(fmt.Sprintf("The %s group has no members", group))
+			r.Say("The %s group has no members", group)
 			return
 		}
-		r.Say(fmt.Sprintf("The %s group has the following members:\n%s", group, strings.Join(members, "\n")))
+		r.Say("The %s group has the following members:\n%s", group, strings.Join(members, "\n"))
 	case "authorize":
 		isMember := false
 		for _, member := range cfgspec.Administrators {
@@ -250,9 +249,9 @@ func groups(r robot.Robot, command string, args ...string) (retval robot.TaskRet
 				updated = true
 			}
 			r.Log(robot.Audit, "User %s added user %s to group %s", m.User, user, group)
-			r.Say(fmt.Sprintf("Ok, I added %s to the %s group", user, group))
+			r.Say("Ok, I added %s to the %s group", user, group)
 		} else {
-			r.Say(fmt.Sprintf("User %s is already in the %s group", user, group))
+			r.Say("User %s is already in the %s group", user, group)
 		}
 	}
 	return

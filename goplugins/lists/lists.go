@@ -83,7 +83,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		listName := strings.ToLower((args[1]))
 		list, ok := lists[listName]
 		if !ok {
-			r.Say(fmt.Sprintf("I don't have a list named %s", args[1]))
+			r.Say("I don't have a list named %s", args[1])
 			return
 		}
 		citem := strings.ToLower(item)
@@ -99,14 +99,14 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 					r.Log(robot.Error, "Couldn't update lists: %s", mret)
 					r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 				} else {
-					r.Say(fmt.Sprintf("Ok, I removed %s from the %s list", item, listName))
+					r.Say("Ok, I removed %s from the %s list", item, listName)
 					updated = true
 				}
 				break
 			}
 		}
 		if !found {
-			r.Say(fmt.Sprintf("I didn't see %s on the %s list", item, listName))
+			r.Say("I didn't see %s on the %s list", item, listName)
 			return
 		}
 	case "empty", "delete":
@@ -114,7 +114,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		var msg string
 		_, ok := lists[listName]
 		if !ok {
-			r.Say(fmt.Sprintf("I don't have a list named %s", args[0]))
+			r.Say("I don't have a list named %s", args[0])
 			return
 		}
 		if command == "empty" {
@@ -146,20 +146,20 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 			return
 		}
 		if scope.Scope == "channel" {
-			r.Say(fmt.Sprintf("Here are the lists I have for this channel:\n%s", strings.Join(listlist, "\n")))
+			r.Say("Here are the lists I have for this channel:\n%s", strings.Join(listlist, "\n"))
 		} else {
-			r.Say(fmt.Sprintf("Here are the lists I know about:\n%s", strings.Join(listlist, "\n")))
+			r.Say("Here are the lists I know about:\n%s", strings.Join(listlist, "\n"))
 		}
 	case "show", "send":
 		listName := strings.ToLower(args[0])
 		var listBuffer bytes.Buffer
 		list, ok := lists[listName]
 		if !ok {
-			r.Say(fmt.Sprintf("I don't have a list named %s", args[0]))
+			r.Say("I don't have a list named %s", args[0])
 			return
 		}
 		if len(list) == 0 {
-			r.Say(fmt.Sprintf("The %s list is empty", args[0]))
+			r.Say("The %s list is empty", args[0])
 			return
 		}
 		lineEnd := "\n"
@@ -171,29 +171,29 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		}
 		switch command {
 		case "show":
-			r.Say(fmt.Sprintf("Here's what I have on the %s list:\n%s", listName, strings.Trim(listBuffer.String(), "\n")))
+			r.Say("Here's what I have on the %s list:\n%s", listName, strings.Trim(listBuffer.String(), "\n"))
 		case "send":
 			if ret := r.Email(fmt.Sprintf("The %s list", args[0]), &listBuffer); ret != robot.Ok {
 				r.Say("Sorry, there was an error sending the email - have somebody check the my log file")
 				return
 			}
 			botmail := r.GetBotAttribute("email").String()
-			r.Say(fmt.Sprintf("Ok, I sent the %s list to you - look for email from %s", args[0], botmail))
+			r.Say("Ok, I sent the %s list to you - look for email from %s", args[0], botmail)
 		}
 	case "pick":
 		listName := strings.ToLower(args[0])
 		list, ok := lists[listName]
 		if !ok {
-			r.Say(fmt.Sprintf("I don't have a list named %s", listName))
+			r.Say("I don't have a list named %s", listName)
 			return
 		}
 		if len(list) == 0 {
-			r.Say(fmt.Sprintf("The %s list is empty", listName))
+			r.Say("The %s list is empty", listName)
 			return
 		}
 		item := r.RandomString(list)
 		r.RememberContext("item", item)
-		r.Say(fmt.Sprintf("Here you go: %s", item))
+		r.Say("Here you go: %s", item)
 	case "add":
 		// Case sensitive input, case insensitve equality checking
 		item := args[0]
@@ -201,7 +201,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		list, ok := lists[listName]
 		if !ok {
 			r.CheckinDatum(datumKey, lock)
-			rep, ret := r.PromptForReply("YesNo", fmt.Sprintf("I don't have a '%s' list, do you want to create it?", args[1]))
+			rep, ret := r.PromptForReply("YesNo", "I don't have a '%s' list, do you want to create it?", args[1])
 			if ret == robot.Ok {
 				switch strings.ToLower(rep) {
 				case "n", "no":
@@ -218,14 +218,14 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 							r.Log(robot.Error, "Couldn't update lists: %s", mret)
 							r.Reply("Crud. I had a problem saving my lists - somebody better check the log")
 						} else {
-							r.Say(fmt.Sprintf("Ok, I created a new %s list and added %s to it", args[1], item))
+							r.Say("Ok, I created a new %s list and added %s to it", args[1], item)
 							updated = true
 						}
 					} else { // wow, it WAS created while waiting
 						citem := strings.ToLower(item)
 						for _, li := range list {
 							if citem == strings.ToLower(li) {
-								r.Say(fmt.Sprintf("Somebody already created the %s list and added %s to it", args[1], item))
+								r.Say("Somebody already created the %s list and added %s to it", args[1], item)
 								return
 							}
 						}
@@ -238,7 +238,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 						} else {
 							updated = true
 						}
-						r.Say(fmt.Sprintf("Ok, I added %s to the new %s list", item, args[1]))
+						r.Say("Ok, I added %s to the new %s list", item, args[1])
 					}
 				}
 			} else {
@@ -249,7 +249,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 			citem := strings.ToLower(item)
 			for _, li := range list {
 				if citem == strings.ToLower(li) {
-					r.Say(fmt.Sprintf("%s is already on the %s list", item, args[1]))
+					r.Say("%s is already on the %s list", item, args[1])
 					return
 				}
 			}
@@ -262,7 +262,7 @@ func lists(r robot.Robot, command string, args ...string) (retval robot.TaskRetV
 			} else {
 				updated = true
 			}
-			r.Say(fmt.Sprintf("Ok, I added %s to the %s list", item, args[1]))
+			r.Say("Ok, I added %s to the %s list", item, args[1])
 		}
 	}
 	return

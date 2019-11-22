@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -52,7 +51,7 @@ func bracket(s string) string {
 func checkPanic(r Robot, s string) {
 	if rcv := recover(); rcv != nil {
 		Log(robot.Error, "PANIC from '%s': %s\nStack trace:%s", s, rcv, godebug.Stack())
-		r.Reply(fmt.Sprintf("OUCH! It looks like you found a bug - please ask an admin to check the log and give them this string: '%s'", s))
+		r.Reply("OUCH! It looks like you found a bug - please ask an admin to check the log and give them this string: '%s'", s)
 		time.Sleep(2 * time.Second)
 		os.Exit(1)
 	}

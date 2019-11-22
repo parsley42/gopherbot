@@ -4,7 +4,6 @@
 package help
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/lnxjedi/gopherbot/bot"
@@ -44,7 +43,7 @@ func help(bot robot.Robot, command string, args ...string) (retval robot.TaskRet
 		}
 		bot.SendUserMessage(m.User, reply)
 	} else if command == "catchall" {
-		bot.Reply(fmt.Sprintf("Sorry, that didn't match any commands I know, or may refer to a command that's not available in this channel; try '%s, help <keyword>'", botName))
+		bot.Reply("Sorry, that didn't match any commands I know, or may refer to a command that's not available in this channel; try '%s, help <keyword>'", botName)
 	}
 	return
 }

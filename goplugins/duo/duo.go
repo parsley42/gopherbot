@@ -111,7 +111,7 @@ func authduo(r robot.Robot, immediate bool, user string, res *authapi.PreauthRes
 				msg[d] = fmt.Sprintf("Device %d: %s (%s)", d, dev.Type, dev.Name)
 			}
 		}
-		r.Direct().Say(fmt.Sprintf("Duo devices:\n%s", strings.Join(msg, "\n")))
+		r.Direct().Say("Duo devices:\n%s", strings.Join(msg, "\n"))
 		rep, ret = r.Direct().PromptForReply("singleDigit", "Which device # do you want to use?")
 		if ret != robot.Ok {
 			rep, ret = r.Direct().PromptForReply("singleDigit", "Try again? I need a single-digit device #")
@@ -160,7 +160,7 @@ func authduo(r robot.Robot, immediate bool, user string, res *authapi.PreauthRes
 			}
 			msg[m] = fmt.Sprintf("Method %d: %s", m, method)
 		}
-		r.Direct().Say(fmt.Sprintf("Duo methods available for your device:\n%s", strings.Join(msg, "\n")))
+		r.Direct().Say("Duo methods available for your device:\n%s", strings.Join(msg, "\n"))
 		rep, ret = r.Direct().PromptForReply("singleDigit", "Which method # do you want to use?")
 		if ret != robot.Ok {
 			rep, ret = r.Direct().PromptForReply("singleDigit", "Try again? I need a single-digit method #")
@@ -183,9 +183,9 @@ func authduo(r robot.Robot, immediate bool, user string, res *authapi.PreauthRes
 	if !prompted {
 		if remembered {
 			if immediate {
-				r.Say(fmt.Sprintf("This command requires immediate elevation - using the last device and method %s", memtype))
+				r.Say("This command requires immediate elevation - using the last device and method %s", memtype)
 			} else {
-				r.Say(fmt.Sprintf("This command requires elevation - using the last device and method %s", memtype))
+				r.Say("This command requires elevation - using the last device and method %s", memtype)
 			}
 		} else {
 			if immediate {
@@ -296,7 +296,7 @@ func configure(r robot.Robot, user string, res *authapi.PreauthResult) (retval r
 				msg[d] = fmt.Sprintf("Device %d: %s (%s)", d, dev.Type, dev.Name)
 			}
 		}
-		r.Direct().Say(fmt.Sprintf("Duo devices:\n%s", strings.Join(msg, "\n")))
+		r.Direct().Say("Duo devices:\n%s", strings.Join(msg, "\n"))
 		rep, ret = r.Direct().PromptForReply("singleDigit", "Which device # do you want to use?")
 		if ret != robot.Ok {
 			rep, ret = r.Direct().PromptForReply("singleDigit", "Try again? I need a single-digit device #")
@@ -333,7 +333,7 @@ func configure(r robot.Robot, user string, res *authapi.PreauthResult) (retval r
 			}
 			msg[m] = fmt.Sprintf("Method %d: %s", m, method)
 		}
-		r.Direct().Say(fmt.Sprintf("Duo methods available for your device:\n%s", strings.Join(msg, "\n")))
+		r.Direct().Say("Duo methods available for your device:\n%s", strings.Join(msg, "\n"))
 		rep, ret = r.Direct().PromptForReply("singleDigit", "Which method # do you want to use?")
 		if ret != robot.Ok {
 			rep, ret = r.Direct().PromptForReply("singleDigit", "Try again? I need a single-digit method #")

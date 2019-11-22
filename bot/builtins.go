@@ -291,10 +291,10 @@ func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 		botCfg.RLock()
 		c, _ := yaml.Marshal(config)
 		botCfg.RUnlock()
-		r.Fixed().Say(fmt.Sprintf("Here's how I've been configured, irrespective of interactive changes:\n%s", c))
+		r.Fixed().Say("Here's how I've been configured, irrespective of interactive changes:\n%s", c)
 	case "dumpplugdefault":
 		if plug, ok := pluginHandlers[args[0]]; ok {
-			r.Fixed().Say(fmt.Sprintf("Here's the default configuration for \"%s\":\n%s", args[0], plug.DefaultConfig))
+			r.Fixed().Say("Here's the default configuration for \"%s\":\n%s", args[0], plug.DefaultConfig)
 		} else { // look for an external plugin
 			found := false
 			c := r.getContext()
@@ -308,7 +308,7 @@ func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 					if plugin.taskType == taskExternal {
 						found = true
 						if cfg, err := getExtDefCfg(plugin.BotTask); err == nil {
-							r.Fixed().Say(fmt.Sprintf("Here's the default configuration for \"%s\":\n%s", args[0], *cfg))
+							r.Fixed().Say("Here's the default configuration for \"%s\":\n%s", args[0], *cfg)
 						} else {
 							r.Say("I had a problem looking that up - somebody should check my logs")
 						}
@@ -326,12 +326,12 @@ func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 			task, plugin, _ := getTask(t)
 			if args[0] == task.name {
 				if plugin == nil {
-					r.Say(fmt.Sprintf("Task '%s' is a job, not a plugin", task.name))
+					r.Say("Task '%s' is a job, not a plugin", task.name)
 					return
 				}
 				found = true
 				c, _ := yaml.Marshal(plugin)
-				r.Fixed().Say(fmt.Sprintf("%s", c))
+				r.Fixed().Say("%s", c)
 			}
 		}
 		if !found {
@@ -367,7 +367,7 @@ func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 			}
 		}
 		if len(plist) > 0 {
-			r.Say(fmt.Sprintf(message, strings.Join(plist, joiner)))
+			r.Say(message, strings.Join(plist, joiner))
 		} else { // note because of builtin plugins, plist is ALWAYS > 0 if disabled wasn't specified
 			r.Say("There are no disabled plugins")
 		}
@@ -413,7 +413,7 @@ func logging(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 		return
 	case "level":
 		setLogLevel(logStrToLevel(args[0]))
-		r.Say(fmt.Sprintf("I've adjusted the log level to %s", args[0]))
+		r.Say("I've adjusted the log level to %s", args[0])
 		Log(robot.Info, "User %s changed logging level to %s", r.User, args[0])
 	case "show":
 		page := 0
@@ -427,11 +427,11 @@ func logging(m robot.Robot, command string, args ...string) (retval robot.TaskRe
 		r.Fixed().Say(strings.Join(lines, ""))
 	case "showlevel":
 		l := getLogLevel()
-		r.Say(fmt.Sprintf("My current logging level is: %s", logLevelToStr(l)))
+		r.Say("My current logging level is: %s", logLevelToStr(l))
 	case "setlines":
 		l, _ := strconv.Atoi(args[0])
 		set := setLogPageLines(l)
-		r.Say(fmt.Sprintf("Lines per page of log output set to: %d", set))
+		r.Say("Lines per page of log output set to: %d", set)
 	}
 	return
 }
@@ -460,18 +460,18 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 	case "debug":
 		tname := args[0]
 		if !identifierRe.MatchString(tname) {
-			r.Say(fmt.Sprintf("Invalid task name '%s', doesn't match regexp: '%s' (task can't load)", tname, identifierRe.String()))
+			r.Say("Invalid task name '%s', doesn't match regexp: '%s' (task can't load)", tname, identifierRe.String())
 			return
 		}
 		c := r.getContext()
 		t := c.tasks.getTaskByName(tname)
 		if t == nil {
-			r.Say(fmt.Sprintf("Task '%s' not found", tname))
+			r.Say("Task '%s' not found", tname)
 			return
 		}
 		task, _, _ := getTask(t)
 		if task.Disabled {
-			r.Say(fmt.Sprintf("That task is disabled, fix and reload; reason: %s", task.reason))
+			r.Say("That task is disabled, fix and reload; reason: %s", task.reason)
 			return
 		}
 		verbose := false
@@ -489,7 +489,7 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		taskDebug.p[task.taskID] = pd
 		taskDebug.u[r.User] = pd
 		taskDebug.Unlock()
-		r.Say(fmt.Sprintf("Debugging enabled for %s (verbose: %v)", args[0], verbose))
+		r.Say("Debugging enabled for %s (verbose: %v)", args[0], verbose)
 	case "stop":
 		taskDebug.Lock()
 		pd, ok := taskDebug.u[r.User]
@@ -517,7 +517,7 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 			runningCount := botCfg.pluginsRunning - 1
 			botCfg.Unlock()
 			if proto != "test" {
-				r.Say(fmt.Sprintf("There are still %d plugins running; I'll exit when they all complete, or you can issue an \"abort\" command", runningCount))
+				r.Say("There are still %d plugins running; I'll exit when they all complete, or you can issue an \"abort\" command", runningCount)
 			}
 		} else {
 			botCfg.Unlock()

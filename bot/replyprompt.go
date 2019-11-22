@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
 	"time"
@@ -118,9 +119,12 @@ func init() {
 //	SimpleString - Characters commonly found in most english sentences, doesn't
 //    include special characters like @, {, etc.
 //	YesNo
-func (r Robot) PromptForReply(regexID string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptForReply(regexID string, prompt string, v ...interface{}) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
+	if len(v) > 0 {
+		prompt = fmt.Sprintf(prompt, v...)
+	}
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, r.User, r.Channel, prompt)
 		if ret == robot.RetryPrompt {
@@ -136,9 +140,12 @@ func (r Robot) PromptForReply(regexID string, prompt string) (string, robot.RetV
 
 // PromptUserForReply is identical to PromptForReply, but prompts a specific
 // user with a DM.
-func (r Robot) PromptUserForReply(regexID string, user string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptUserForReply(regexID string, user string, prompt string, v ...interface{}) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
+	if len(v) > 0 {
+		prompt = fmt.Sprintf(prompt, v...)
+	}
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, user, "", prompt)
 		if ret == robot.RetryPrompt {
@@ -154,9 +161,12 @@ func (r Robot) PromptUserForReply(regexID string, user string, prompt string) (s
 
 // PromptUserChannelForReply is identical to PromptForReply, but prompts a
 // specific user in a given channel.
-func (r Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string) (string, robot.RetVal) {
+func (r Robot) PromptUserChannelForReply(regexID string, user string, channel string, prompt string, v ...interface{}) (string, robot.RetVal) {
 	var rep string
 	var ret robot.RetVal
+	if len(v) > 0 {
+		prompt = fmt.Sprintf(prompt, v...)
+	}
 	for i := 0; i < 3; i++ {
 		rep, ret = r.promptInternal(regexID, user, channel, prompt)
 		if ret == robot.RetryPrompt {

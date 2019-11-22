@@ -151,7 +151,7 @@ func (r *Robot) ExtendNamespace(ext string, histories int) bool {
 					if url, ok := c.history.GetHistoryURL(hspec, hist.LogIndex); ok {
 						link = fmt.Sprintf(" (link: %s)", url)
 					}
-					r.Say(fmt.Sprintf("Job '%s' extended namespace: %s:%s, run %d%s", c.jobName, c.jobName, ext, c.runIndex, link))
+					r.Say("Job '%s' extended namespace: %s:%s, run %d%s", c.jobName, c.jobName, ext, c.runIndex, link)
 				}
 			} else {
 				if c.history == nil {
