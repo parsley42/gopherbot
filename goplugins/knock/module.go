@@ -1,4 +1,4 @@
-// +build modular
+// +build module
 
 package knock
 

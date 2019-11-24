@@ -23,25 +23,25 @@ gopherbot: main.go bot/* brains/*/* connectors/*/* goplugins/*/* history/*/*
 
 # modules
 connectors/slack.so: connectors/slack-mod.go connectors/slack/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 connectors/rocket.so: connectors/slack-mod.go connectors/rocket/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 connectors/terminal.so: connectors/slack-mod.go connectors/terminal/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/duo.so: goplugins/duo-mod.go goplugins/duo/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/knock.so: goplugins/knock-mod.go goplugins/knock/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/totp.so: goplugins/totp-mod.go goplugins/totp/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 brains/dynamodb.so: brains/dynamodb-mod.go brains/dynamodb/*.go
-	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build modular' $<
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 clean:
 	rm -f gopherbot $(MODULES)

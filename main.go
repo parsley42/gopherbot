@@ -12,8 +12,7 @@ import (
 	// or unneeded funcationality. You'll need at least one connector for your
 	// bot to be useful, however.
 
-	// *** Included connectors
-
+	// *** Compiled-in connectors
 	_ "github.com/lnxjedi/gopherbot/connectors/rocket"
 
 	// NOTE: if you build with '-tags test', the terminal connector will also

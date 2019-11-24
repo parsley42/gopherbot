@@ -10,6 +10,15 @@ import (
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
+// Loadable modules can still be compiled in to the binary. When
+// this is the case, the module should register as preloaded during
+// init, to prevent automatic loading of the module.
+var preloaded map[string]struct{} = make(map[string]struct{})
+
+func RegisterPreload(mod string) {
+	preloaded[mod] = struct{}{}
+}
+
 // Load pluggable modules and call "GetPlugins", "GetConnectors", etc., then
 // register them.
 func loadModules() {
@@ -23,33 +32,38 @@ func loadModules() {
 
 // loadModule loads a module and registers it's contents
 func loadModule(name, path string) {
+	if _, ok := preloaded[path]; ok {
+		Log(robot.Debug, "Skipping load of pre-loaded (compiled in) module: %s", path)
+		return
+	}
 	lp, err := getObjectPath(path)
 	if err != nil {
-		Log(robot.Warn, "unable to locate loadable module '%s' from path '%s'", name, path)
+		Log(robot.Warn, "Unable to locate loadable module '%s' from path '%s'", name, path)
 		return
 	}
 	if k, err := plugin.Open(lp); err == nil {
+		Log(robot.Info, "Loaded module '%s': %s", name, path						)
 		// look for and register plugins
 		if gp, err := k.Lookup("GetPlugins"); err == nil {
 			gf := gp.(func() []robot.PluginSpec)
 			pl := gf()
 			for _, pspec := range pl {
-				Log(robot.Info, "registering plugin '%s' from loadable module '%s'", pspec.Name, path)
+				Log(robot.Info, "Registering plugin '%s' from loadable module '%s'", pspec.Name, path)
 				RegisterPlugin(pspec.Name, pspec.Handler)
 			}
 		} else {
-			Log(robot.Debug, "symbol 'GetPlugins' not found in loadable module '%s': %v", path, err)
+			Log(robot.Debug, "Symbol 'GetPlugins' not found in loadable module '%s': %v", path, err)
 		}
 		// look for and register connector
 		if ci, err := k.Lookup("GetInitializer"); err == nil {
 			cif := ci.(func() (string, func(robot.Handler, *log.Logger) robot.Connector))
 			name, initializer := cif()
-			Log(robot.Info, "registering connector '%s' from loadable module '%s'", name, path)
+			Log(robot.Info, "Registering connector '%s' from loadable module '%s'", name, path)
 			RegisterConnector(name, initializer)
 		} else {
-			Log(robot.Debug, "symbol 'GetInitializer' not found in loadable module '%s': %v", path, err)
+			Log(robot.Debug, "Symbol 'GetInitializer' not found in loadable module '%s': %v", path, err)
 		}
 	} else {
-		Log(robot.Error, "loading module '%s': %v", lp, err)
+		Log(robot.Error, "Loading module '%s': %v", lp, err)
 	}
 }

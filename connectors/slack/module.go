@@ -1,4 +1,5 @@
-// +build modular
+// Common symbols needed when being built as a module
+// +build module
 
 package slack
 
@@ -7,11 +8,6 @@ import (
 
 	"github.com/lnxjedi/gopherbot/robot"
 )
-
-var slackspec = robot.PluginSpec{
-	Name:    "slackutil",
-	Handler: slackplugin,
-}
 
 // GetPlugins is the common exported symbol for loadable go plugins.
 func GetPlugins() []robot.PluginSpec {
