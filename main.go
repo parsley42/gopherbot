@@ -12,15 +12,7 @@ import (
 	// or unneeded funcationality. You'll need at least one connector for your
 	// bot to be useful, however.
 
-	// *** Compiled-in connectors
-	_ "github.com/lnxjedi/gopherbot/connectors/rocket"
-
-	// NOTE: if you build with '-tags test', the terminal connector will also
-	// show emitted events.
-	_ "github.com/lnxjedi/gopherbot/connectors/terminal"
-
 	// *** Included brain implementations
-
 	_ "github.com/lnxjedi/gopherbot/brains/dynamodb"
 	_ "github.com/lnxjedi/gopherbot/brains/file"
 
