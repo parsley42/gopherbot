@@ -63,7 +63,7 @@ var botCfg struct {
 	plugChannels         []string              // list of channels where plugins are available by default
 	protocol             string                // Name of the protocol, e.g. "slack"
 	brainProvider        string                // Type of Brain provider to use
-	brain                SimpleBrain           // Interface for robot to Store and Retrieve data
+	brain                robot.SimpleBrain     // Interface for robot to Store and Retrieve data
 	encryptionKey        string                // Key for encrypting data (unlocks "real" key in brain)
 	historyProvider      string                // Name of the history provider to use
 	history              robot.HistoryProvider // Provider for storing and retrieving job / plugin histories

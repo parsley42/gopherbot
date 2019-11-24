@@ -50,7 +50,7 @@ func (fb *brainConfig) Retrieve(k string) (*[]byte, bool, error) {
 }
 
 // The file brain doesn't need the logger, but other brains might
-func provider(r robot.Handler, _ *log.Logger) bot.SimpleBrain {
+func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
 	handler = r
 	handler.GetBrainConfig(&fb)
 	if len(fb.BrainDirectory) == 0 {

@@ -31,7 +31,7 @@ func (mb *memBrain) Retrieve(k string) (*[]byte, bool, error) {
 }
 
 // The file brain doesn't need the logger, but other brains might
-func provider(r robot.Handler, _ *log.Logger) SimpleBrain {
+func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
 	mb := &memBrain{
 		memories: make(map[string]*[]byte),
 	}

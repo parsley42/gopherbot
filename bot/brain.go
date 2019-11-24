@@ -13,20 +13,8 @@ import (
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
-// SimpleBrain is the simple interface for a configured brain, where the robot
-// handles all locking issues.
-type SimpleBrain interface {
-	// Store stores a blob of data with a string key, returns error
-	// if there's a problem storing the datum.
-	Store(key string, blob *[]byte) error
-	// Retrieve returns a blob of data (probably JSON) given a string key,
-	// and exists=true if the data blob was found, or error if the brain
-	// malfunctions.
-	Retrieve(key string) (blob *[]byte, exists bool, err error)
-}
-
 // Map of registered brains
-var brains = make(map[string]func(robot.Handler, *log.Logger) SimpleBrain)
+var brains = make(map[string]func(robot.Handler, *log.Logger) robot.SimpleBrain)
 
 // short-term memories, mostly what "it" is
 type shortTermMemory struct {
@@ -600,7 +588,7 @@ func (r Robot) Recall(key string) string {
 // brain type that returns an SimpleBrain interface.
 // This can only be called from a brain provider's init() function(s). Pass in a Logger
 // so the brain can log it's own error messages if needed.
-func RegisterSimpleBrain(name string, provider func(robot.Handler, *log.Logger) SimpleBrain) {
+func RegisterSimpleBrain(name string, provider func(robot.Handler, *log.Logger) robot.SimpleBrain) {
 	if stopRegistrations {
 		return
 	}

@@ -116,7 +116,7 @@ func (db *brainConfig) Retrieve(k string) (datum *[]byte, exists bool, err error
 	return &m.Content, true, nil
 }
 
-func provider(r robot.Handler, _ *log.Logger) bot.SimpleBrain {
+func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
 	handler = r
 	handler.GetBrainConfig(&dynamocfg)
 	var sess *session.Session
