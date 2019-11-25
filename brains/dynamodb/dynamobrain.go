@@ -3,15 +3,12 @@
 package dynamobrain
 
 import (
-	"log"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
@@ -116,7 +113,7 @@ func (db *brainConfig) Retrieve(k string) (datum *[]byte, exists bool, err error
 	return &m.Content, true, nil
 }
 
-func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
+func provider(r robot.Handler) robot.SimpleBrain {
 	handler = r
 	handler.GetBrainConfig(&dynamocfg)
 	var sess *session.Session
@@ -162,8 +159,4 @@ func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
 	}
 
 	return &dynamocfg
-}
-
-func init() {
-	bot.RegisterSimpleBrain("dynamo", provider)
 }
