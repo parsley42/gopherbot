@@ -12,11 +12,10 @@ import (
 	// or unneeded funcationality. You'll need at least one connector for your
 	// bot to be useful, however.
 
-	// *** Included brain implementations
-	_ "github.com/lnxjedi/gopherbot/brains/dynamodb"
+	// *** Compiled-in brain implementations
 	_ "github.com/lnxjedi/gopherbot/brains/file"
 
-	// *** Included history implementations
+	// *** Compiled-in history implementations
 	_ "github.com/lnxjedi/gopherbot/history/file"
 
 	// Many included plugins already have 'Disabled: true', but you can also

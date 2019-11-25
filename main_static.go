@@ -11,5 +11,9 @@ import (
 	// show emitted events.
 	_ "github.com/lnxjedi/gopherbot/connectors/terminal"
 
+	// A brain using AWS DynamoDB
+	_ "github.com/lnxjedi/gopherbot/brains/dynamodb"
+
+	// A joke telling plugin
 	_ "github.com/lnxjedi/gopherbot/goplugins/knock"
 )

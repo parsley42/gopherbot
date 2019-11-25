@@ -4,11 +4,8 @@
 
 commit := $(shell git rev-parse --short HEAD)
 
-# MODULES = connectors/rocket.so connectors/terminal.so \
-#	goplugins/duo.so goplugins/knock.so goplugins/totp.so brains/dynamodb.so
-
-MODULES = goplugins/knock.so connectors/slack.so connectors/rocket.so \
-	 connectors/terminal.so
+MODULES = goplugins/knock.so goplugins/duo.so goplugins/meme.so goplugins/totp.so \
+	connectors/slack.so connectors/rocket.so connectors/terminal.so brains/dynamodb.so
 
 GOOS ?= linux
 CGO ?= 0
@@ -26,16 +23,19 @@ gopherbot: main.go bot/* brains/*/* connectors/*/* goplugins/*/* history/*/*
 connectors/slack.so: connectors/slack-mod.go connectors/slack/*.go
 	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
-connectors/rocket.so: connectors/slack-mod.go connectors/rocket/*.go
+connectors/rocket.so: connectors/rocket-mod.go connectors/rocket/*.go
 	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
-connectors/terminal.so: connectors/slack-mod.go connectors/terminal/*.go
+connectors/terminal.so: connectors/terminal-mod.go connectors/terminal/*.go
 	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/duo.so: goplugins/duo-mod.go goplugins/duo/*.go
 	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/knock.so: goplugins/knock-mod.go goplugins/knock/*.go
+	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
+
+goplugins/meme.so: goplugins/meme-mod.go goplugins/meme/*.go
 	GOOS=${GOOS} GOARCH=amd64 go build -mod vendor -o $@ -buildmode=plugin -tags 'netgo osusergo static_build module' $<
 
 goplugins/totp.so: goplugins/totp-mod.go goplugins/totp/*.go
