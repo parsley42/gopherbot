@@ -1,6 +1,4 @@
-// The memes plugin is an example of how you can use the robot for fun things
-// like generating Internet meme images.
-package memes
+package meme
 
 import (
 	"encoding/json"
@@ -91,9 +89,7 @@ func createMeme(m *MemeConfig, templateId, topText, bottomText string) (string, 
 	return url, nil
 }
 
-func init() {
-	bot.RegisterPlugin("memes", robot.PluginHandler{
-		Handler: memegen,
-		Config:  &MemeConfig{},
-	})
+var memehandler = robot.PluginHandler{
+	Handler: memegen,
+	Config:  &MemeConfig{},
 }

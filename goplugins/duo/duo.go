@@ -9,7 +9,6 @@ import (
 
 	duoapi "github.com/duosecurity/duo_api_golang"
 	"github.com/duosecurity/duo_api_golang/authapi"
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
@@ -493,10 +492,8 @@ Config:
   DuoUserString: emailUser
 `
 
-func init() {
-	bot.RegisterPlugin("duo", robot.PluginHandler{
-		DefaultConfig: defaultConfig,
-		Handler:       duocommands,
-		Config:        &config{},
-	})
+var duohandler = robot.PluginHandler{
+	DefaultConfig: defaultConfig,
+	Handler:       duocommands,
+	Config:        &config{},
 }

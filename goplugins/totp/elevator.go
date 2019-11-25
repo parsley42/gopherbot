@@ -9,7 +9,6 @@ import (
 	"time"
 
 	otp "github.com/dgryski/dgoogauth"
-	"github.com/lnxjedi/gopherbot/bot"
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
@@ -185,9 +184,7 @@ func elevate(r robot.Robot, command string, args ...string) (retval robot.TaskRe
 	return
 }
 
-func init() {
-	bot.RegisterPlugin("totp", robot.PluginHandler{
-		Handler: elevate,
-		Config:  &config{},
-	})
+var totphandler = robot.PluginHandler{
+	Handler: elevate,
+	Config:  &config{},
 }
