@@ -120,12 +120,12 @@ func initBot(cpath, epath string, logger *log.Logger) {
 		if bprovider, ok := brains[botCfg.brainProvider]; !ok {
 			Log(robot.Fatal, "No provider registered for brain: \"%s\"", botCfg.brainProvider)
 		} else {
-			brain := bprovider(handle, logger)
+			brain := bprovider(handle)
 			botCfg.brain = brain
 		}
 	} else {
 		bprovider, _ := brains["mem"]
-		botCfg.brain = bprovider(handle, logger)
+		botCfg.brain = bprovider(handle)
 		Log(robot.Error, "No brain configured, falling back to default 'mem' brain - no memories will persist")
 	}
 	initialized := false

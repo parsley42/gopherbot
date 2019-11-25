@@ -2,7 +2,12 @@
 
 package bot
 
-// empty declaration for static builds
+// RegisterPreload empty declaration for static builds
+func RegisterPreload(s string) {
+
+}
+
+// empty declarations for static builds
 func loadModules() {
 
 }

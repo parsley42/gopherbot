@@ -6,8 +6,6 @@ package bot
 // however, if no other brain is configured, membrain is used as the default.
 
 import (
-	"log"
-
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
@@ -31,7 +29,7 @@ func (mb *memBrain) Retrieve(k string) (*[]byte, bool, error) {
 }
 
 // The file brain doesn't need the logger, but other brains might
-func provider(r robot.Handler, _ *log.Logger) robot.SimpleBrain {
+func provider(r robot.Handler) robot.SimpleBrain {
 	mb := &memBrain{
 		memories: make(map[string]*[]byte),
 	}

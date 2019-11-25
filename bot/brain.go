@@ -14,7 +14,7 @@ import (
 )
 
 // Map of registered brains
-var brains = make(map[string]func(robot.Handler, *log.Logger) robot.SimpleBrain)
+var brains = make(map[string]func(robot.Handler) robot.SimpleBrain)
 
 // short-term memories, mostly what "it" is
 type shortTermMemory struct {
@@ -588,7 +588,7 @@ func (r Robot) Recall(key string) string {
 // brain type that returns an SimpleBrain interface.
 // This can only be called from a brain provider's init() function(s). Pass in a Logger
 // so the brain can log it's own error messages if needed.
-func RegisterSimpleBrain(name string, provider func(robot.Handler, *log.Logger) robot.SimpleBrain) {
+func RegisterSimpleBrain(name string, provider func(robot.Handler) robot.SimpleBrain) {
 	if stopRegistrations {
 		return
 	}

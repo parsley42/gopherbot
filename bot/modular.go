@@ -33,9 +33,10 @@ func loadModules() {
 // loadModule loads a module and registers it's contents
 func loadModule(name, path string) {
 	if _, ok := preloaded[path]; ok {
-		Log(robot.Debug, "Skipping load of pre-loaded (compiled in) module: %s", path)
+		Log(robot.Debug, "Skipping load of already loaded or compiled in module: %s", path)
 		return
 	}
+	preloaded[path] = struct{}{}
 	lp, err := getObjectPath(path)
 	if err != nil {
 		Log(robot.Warn, "Unable to locate loadable module '%s' from path '%s'", name, path)
@@ -60,6 +61,15 @@ func loadModule(name, path string) {
 			name, initializer := cif()
 			Log(robot.Info, "Registering connector '%s' from loadable module '%s'", name, path)
 			RegisterConnector(name, initializer)
+		} else {
+			Log(robot.Debug, "Symbol 'GetInitializer' not found in loadable module '%s': %v", path, err)
+		}
+		// look for and register brain
+		if bp, err := k.Lookup("GetBrainProvider"); err == nil {
+			bpf := bp.(func() (string, func(robot.Handler) robot.SimpleBrain))
+			name, provider := bpf()
+			Log(robot.Info, "Registering brain provider '%s' from loadable module '%s'", name, path)
+			RegisterSimpleBrain(name, provider)
 		} else {
 			Log(robot.Debug, "Symbol 'GetInitializer' not found in loadable module '%s': %v", path, err)
 		}
