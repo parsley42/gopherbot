@@ -32,6 +32,8 @@ func init() {
 
 func jobcommands(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	r := m.(Robot)
+	ctx := r.getLockedContext()
+	tasks := ctx.tasks
 	if command == "init" {
 		return
 	}
@@ -44,9 +46,8 @@ func jobcommands(m robot.Robot, command string, args ...string) (retval robot.Ta
 		} else {
 			jl = []string{"Here's a list of jobs for this channel:"}
 		}
-		c := r.getContext()
-		for _, t := range c.tasks.t[1:] {
-			if !r.jobVisible(t, alljobs, true) {
+		for _, t := range tasks.t[1:] {
+			if !r.jobVisible(ctx, t, alljobs, true) {
 				continue
 			}
 			task, _, _ := getTask(t)
@@ -191,13 +192,14 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 	}
 
 	// boilerplate availability and security checking for job commands
-	c := r.getContext()
+	ctx := r.getLockedContext()
+	ctx.Unlock()
 	jobName := strings.Split(histSpec, ":")[0]
-	t := c.jobAvailable(jobName)
+	t := ctx.jobAvailable(jobName)
 	if t == nil {
 		return
 	}
-	if !c.jobSecurityCheck(t, command) {
+	if !ctx.jobSecurityCheck(t, command) {
 		return
 	}
 	vr := r.MessageFormat(robot.Variable)
@@ -304,7 +306,9 @@ func (c *botContext) jobSecurityCheck(t interface{}, command string) bool {
 	if c.automaticTask {
 		return true
 	}
+	c.Lock()
 	ct := c.currentTask
+	c.Unlock()
 	task, _, _ := getTask(t)
 	if task.RequireAdmin {
 		r := c.makeRobot()
@@ -326,15 +330,16 @@ func (c *botContext) jobSecurityCheck(t interface{}, command string) bool {
 		}
 	}
 	// Restore currentTask, potentially modified by checkAuthorization/checkElevation
+	c.Lock()
 	c.currentTask = ct
+	c.Unlock()
 	return true
 }
 
 // jobVisible checks whether a user should see a job in a channel, unless
 // ignoreChannelRestrictions is set. Note that changes to logic in jobVisible
 // may need to propagate to jobAvailable, below.
-func (r *Robot) jobVisible(t interface{}, ignoreChannelRestrictions, disabledOk bool) bool {
-	c := r.getContext()
+func (r *Robot) jobVisible(c *botContext, t interface{}, ignoreChannelRestrictions, disabledOk bool) bool {
 	task, _, job := getTask(t)
 	if job == nil {
 		return false

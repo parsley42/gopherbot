@@ -46,7 +46,8 @@ func (r Robot) EmailAddress(address, subject string, messageBody *bytes.Buffer, 
 }
 
 func (r Robot) realEmail(subject, mailTo string, messageBody *bytes.Buffer, html ...bool) (ret robot.RetVal) {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	var mailFrom, botName string
 
 	mailAttr := r.GetBotAttribute("email")

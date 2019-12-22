@@ -170,7 +170,6 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 		Log(robot.Debug, "Received private message from user '%s'", userName)
 	} else {
 		Log(robot.Debug, "Message '%s' from user '%s' in channel '%s'; isCommand: %t", message, userName, logChannel, isCommand)
-		c.debug(fmt.Sprintf("Message (command: %v) in channel %s: %s", isCommand, logChannel, message), true)
 	}
 	go c.handleMessage()
 }

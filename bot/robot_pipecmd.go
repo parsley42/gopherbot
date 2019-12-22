@@ -13,7 +13,8 @@ import (
 // retrieve it. Returns nil and logs an error if the calling task isn't a job,
 // or the namespace has already been extended.
 func (r Robot) GetRepoData() map[string]robot.Repository {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	t, p, j := getTask(c.currentTask)
 	if j == nil && p == nil {
 		r.Log(robot.Error, "GetRepoData called by non-job/plugin task '%s'", t.name)
@@ -57,7 +58,8 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		r.Log(robot.Error, "Invalid namespace extension contains ':'")
 		return false
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if c.stage != primaryTasks {
 		r.Log(robot.Error, "ExtendNamespace called after pipeline end")
 		return false
@@ -193,7 +195,8 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 // pipeTask does all the real work of adding tasks to pipelines or spawning
 // new tasks.
 func (r Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, args ...string) robot.RetVal {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if c.stage != primaryTasks {
 		task, _, _ := getTask(c.currentTask)
 		r.Log(robot.Error, "request to modify pipeline outside of initial pipeline in task '%s'", task.name)

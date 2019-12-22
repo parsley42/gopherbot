@@ -335,7 +335,7 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 		} else {
 			c.debugT(t, fmt.Sprintf("Running task with command '%s' and arguments: %v", command, args), false)
 			errString, ret = c.callTask(t, command, args...)
-			c.debug(fmt.Sprintf("Task finished with return value: %s", ret), false)
+			c.debugT(t, fmt.Sprintf("Task finished with return value: %s", ret), false)
 			if c.stage != finalTasks && ret != robot.Normal {
 				c.failedTask = task.name
 				if len(args) > 0 {
@@ -413,6 +413,8 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 }
 
 func (c *botContext) getEnvironment(task *Task) map[string]string {
+	c.Lock()
+	defer c.Unlock()
 	envhash := make(map[string]string)
 	if len(c.environment) > 0 {
 		for k, v := range c.environment {

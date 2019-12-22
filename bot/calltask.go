@@ -77,12 +77,16 @@ func (c *botContext) callTask(t interface{}, command string, args ...string) (er
 	return ret.errString, ret.retval
 }
 
-func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
+func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
 	var retval robot.TaskRetVal
 
-	c.currentTask = t
-	r := c.makeRobot()
+	ctx.Lock()
+	ctx.currentTask = t
+	r := ctx.makeRobot()
+	logger := ctx.logger
+	workdir := ctx.workingDirectory
+	ctx.Unlock()
 	task, plugin, job := getTask(t)
 	isPlugin := plugin != nil
 	isJob := job != nil
@@ -90,11 +94,11 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	if task.Disabled {
 		msg := fmt.Sprintf("callTask failed on disabled task %s; reason: %s", task.name, task.reason)
 		Log(robot.Error, msg)
-		c.debug(msg, false)
+		ctx.debugT(t, msg, false)
 		rchan <- taskReturn{msg, robot.ConfigurationError}
 		return
 	}
-	if c.logger != nil {
+	if logger != nil {
 		var taskinfo string
 		if isPlugin {
 			taskinfo = task.name + " " + command
@@ -110,45 +114,50 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		} else {
 			desc = fmt.Sprintf("Starting task '%s'", task.name)
 		}
-		c.logger.Section(taskinfo, desc)
+		logger.Section(taskinfo, desc)
 	}
 
 	if !(task.name == "builtin-admin" && command == "abort") {
-		if c.directMsg {
+		if ctx.directMsg {
 			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: (omitted)", task.name, command))
 		} else {
 			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: %v", task.name, command, args))
 		}
 	}
-	if c.directMsg {
+	if ctx.directMsg {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '(omitted for DM)'", command, task.name)
 	} else {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '%#v'", command, task.name, args)
 	}
 
-	// Set up the per-task environment
-	envhash := c.getEnvironment(task)
+	// Set up the per-task environment, getEnvironment takes lock & releases
+	envhash := ctx.getEnvironment(task)
+	ctx.Lock()
+	ctx.taskenvironment = envhash
+	ctx.Unlock()
 
 	if isPlugin && plugin.taskType == taskGo {
 		if command != "init" {
 			emit(GoPluginRan)
 		}
 		Log(robot.Debug, "Calling go plugin: '%s' with args: %q", task.name, args)
-		c.taskenvironment = envhash
 		ret := pluginHandlers[task.name].Handler(r, command, args...)
-		c.taskenvironment = nil
+		ctx.Lock()
+		ctx.taskenvironment = nil
+		ctx.Unlock()
 		rchan <- taskReturn{"", ret}
 		return
 	} else if task.taskType == taskGo {
 		Log(robot.Debug, "Calling go task '%s' (type %s) with args: %q", task.name, task.taskType, args)
-		c.taskenvironment = envhash
 		var ret robot.TaskRetVal
 		if isJob {
 			ret = jobHandlers[task.name].Handler(r, args...)
 		} else {
 			ret = taskHandlers[task.name].Handler(r, args...)
 		}
-		c.taskenvironment = nil
+		ctx.Lock()
+		ctx.taskenvironment = nil
+		ctx.Unlock()
 		rchan <- taskReturn{"", ret}
 		return
 	}
@@ -157,7 +166,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	if task.Homed {
 		taskPath, err = getTaskPath(task, ".")
 	} else {
-		taskPath, err = getTaskPath(task, c.workingDirectory)
+		taskPath, err = getTaskPath(task, workdir)
 	}
 	if err != nil {
 		emit(ExternalTaskBadPath)
@@ -172,18 +181,18 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	externalArgs = append(externalArgs, args...)
 	Log(robot.Debug, "Calling '%s' with args: %q", taskPath, externalArgs)
 	cmd := exec.Command(taskPath, externalArgs...)
-	c.Lock()
-	c.taskName = task.name
-	c.taskDesc = task.Description
-	c.osCmd = cmd
-	c.Unlock()
+	ctx.Lock()
+	ctx.taskName = task.name
+	ctx.taskDesc = task.Description
+	ctx.osCmd = cmd
+	ctx.Unlock()
 
 	// Homed tasks ALWAYS run in cwd, Homed pipelines may have modified the
 	// working directory with SetWorkingDirectory.
 	if task.Homed {
 		cmd.Dir = "."
 	} else {
-		cmd.Dir = c.workingDirectory
+		cmd.Dir = workdir
 	}
 	if task.Privileged || task.Homed {
 		if task.Privileged && len(homePath) > 0 {
@@ -191,9 +200,9 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 			envhash["GOPHER_HOME"] = homePath
 		}
 		// Always set for homed and privileged tasks
-		envhash["GOPHER_WORKSPACE"] = c.cfg.workSpace
+		envhash["GOPHER_WORKSPACE"] = ctx.cfg.workSpace
 		envhash["GOPHER_CONFIGDIR"] = configPath
-		envhash["GOPHER_WORKDIR"] = c.workingDirectory
+		envhash["GOPHER_WORKDIR"] = workdir
 	}
 	env := make([]string, 0, len(envhash))
 	keys := make([]string, 0, len(envhash))
@@ -216,7 +225,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		rchan <- taskReturn{errString, robot.MechanismFail}
 		return
 	}
-	if !local && c.logger == nil {
+	if !local && logger == nil {
 		// close stdout on the external plugin...
 		cmd.Stdout = nil
 	} else {
@@ -229,7 +238,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		}
 	}
 
-	if c.privileged {
+	if ctx.privileged {
 		if isPlugin && !plugin.Privileged {
 			dropThreadPriv(fmt.Sprintf("task %s / %s", task.name, command))
 		} else {
@@ -248,7 +257,7 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 	if command != "init" {
 		emit(ExternalTaskRan)
 	}
-	if !local && c.logger == nil {
+	if !local && logger == nil {
 		var stdErrBytes []byte
 		if stdErrBytes, err = ioutil.ReadAll(stderr); err != nil {
 			Log(robot.Error, "Reading from stderr for external command '%s': %v", taskPath, err)
@@ -264,19 +273,18 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 		}
 	} else {
 		closed := make(chan struct{})
-		hl := c.logger
 		var solog, selog *log.Logger
 		if local {
 			solog = log.New(os.Stdout, "OUT: ", 0)
 			selog = log.New(os.Stdout, "ERR: ", 0)
 		}
 		go func() {
-			logging := c.logger != nil
+			logging := logger != nil
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				line := scanner.Text()
 				if logging {
-					hl.Log("OUT " + line)
+					logger.Log("OUT " + line)
 				}
 				if local {
 					solog.Println(line)
@@ -285,12 +293,12 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 			closed <- struct{}{}
 		}()
 		go func() {
-			logging := c.logger != nil
+			logging := logger != nil
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
 				line := scanner.Text()
 				if logging {
-					hl.Log("ERR " + line)
+					logger.Log("ERR " + line)
 				}
 				if local {
 					selog.Println(line)
@@ -309,9 +317,11 @@ func (c *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, comm
 				halfClosed = true
 			}
 		}
-		if c.logger != hl {
-			hl.Close()
+		ctx.Lock()
+		if ctx.logger != logger {
+			logger.Close()
 		}
+		ctx.Unlock()
 	}
 	if err = cmd.Wait(); err != nil {
 		retval = robot.Fail

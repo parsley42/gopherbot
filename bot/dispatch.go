@@ -21,8 +21,7 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 	r := c.makeRobot()
 	// un-needed, but more clear
 	messageMatched = false
-	// If we're checking messages, debugging messages require that the user requested verboseness
-	//verboseOnly := !checkCommands
+	// If we're checking messages, debugging messages require that the admin requested verboseness
 	verboseOnly := false
 	if pipelineType == plugMessage {
 		verboseOnly = true

@@ -21,7 +21,8 @@ func (r Robot) GetMessage() *robot.Message {
 // admin wants to supplment whats available from the protocol.
 func (r Robot) GetUserAttribute(u, a string) *robot.AttrRet {
 	a = strings.ToLower(a)
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	var user string
 	var ui *UserInfo
 	var ok bool
@@ -76,7 +77,8 @@ func (c *botContext) messageHeard() {
 // name(handle), fullName, email, firstName, lastName, phone, internalID
 // TODO: (see above)
 func (r Robot) GetSenderAttribute(a string) *robot.AttrRet {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	a = strings.ToLower(a)
 	var ui *UserInfo
 	ui, _ = c.maps.user[r.User]
@@ -123,7 +125,8 @@ func (r Robot) SendChannelMessage(ch, msg string, v ...interface{}) robot.RetVal
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	var channel string
 	if ci, ok := c.maps.channel[ch]; ok {
 		channel = bracket(ci.ChannelID)
@@ -146,7 +149,8 @@ func (r Robot) SendUserChannelMessage(u, ch, msg string, v ...interface{}) robot
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	var user string
 	if ui, ok := c.maps.user[u]; ok {
 		user = bracket(ui.UserID)
@@ -173,7 +177,8 @@ func (r Robot) SendUserMessage(u, msg string, v ...interface{}) robot.RetVal {
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	var user string
 	if ui, ok := c.maps.user[u]; ok {
 		user = bracket(ui.UserID)
@@ -204,7 +209,8 @@ func (r Robot) Reply(msg string, v ...interface{}) robot.RetVal {
 	if len(channel) == 0 {
 		channel = r.Channel
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if c != nil && c.BotUser {
 		return interfaces.SendProtocolChannelMessage(r.Channel, r.User+": "+msg, r.Format)
 	}

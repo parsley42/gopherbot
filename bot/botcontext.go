@@ -101,8 +101,8 @@ func (c *botContext) registerActive(parent *botContext) {
 
 	activeRobots.Lock()
 	if parent != nil {
-		parent.child = c
-		c.parent = parent
+		parent._child = c
+		c._parent = parent
 	}
 	activeRobots.i[c.id] = c
 	activeRobots.Unlock()
@@ -138,7 +138,7 @@ func (c *botContext) makeRobot() Robot {
 // starting a new goroutine for startPipeline. Used by e.g. triggered jobs,
 // SpawnJob(), and runPipeline for sub-jobs.
 func (c *botContext) clone() *botContext {
-	c.RLock()
+	c.Lock()
 	clone := &botContext{
 		User:             c.User,
 		ProtocolUser:     c.ProtocolUser,
@@ -148,22 +148,22 @@ func (c *botContext) clone() *botContext {
 		directMsg:        c.directMsg,
 		BotUser:          c.BotUser,
 		listedUser:       c.listedUser,
-		_pipeName:        c._pipeName,
-		_pipeDesc:        c._pipeDesc,
+		pipeName:         c.pipeName,
+		pipeDesc:         c.pipeDesc,
 		ptype:            c.ptype,
 		cfg:              c.cfg,
 		tasks:            c.tasks,
 		maps:             c.maps,
 		repositories:     c.repositories,
 		automaticTask:    c.automaticTask,
-		_elevated:        c._elevated,
+		elevated:         c.elevated,
 		Protocol:         c.Protocol,
 		Format:           c.Format,
 		msg:              c.msg,
 		workingDirectory: "",
-		_environment:     make(map[string]string),
+		environment:      make(map[string]string),
 	}
-	c.RUnlock()
+	c.Unlock()
 	return clone
 }
 
@@ -172,6 +172,7 @@ func (c *botContext) clone() *botContext {
 // (or doesn't). It could also be called Context, or PipelineState; but for
 // use by plugins, it's best left as Robot.
 type botContext struct {
+	sync.Mutex                                   // Lock to protect the bot context when pipeline running
 	User             string                      // The user who sent the message; this can be modified for replying to an arbitrary user
 	Channel          string                      // The channel where the message was received, or "" for a direct message. This can be modified to send a message to an arbitrary channel.
 	ProtocolUser     string                      // The username or <userid> to be sent in connector methods
@@ -200,32 +201,32 @@ type botContext struct {
 	ptype            pipelineType                // what started this pipeline
 
 	// Parent and child values protected by the activeRobots lock
-	update            chan interface{}  // Channel for serializing ... ?
-	__parent, __child *botContext       // for sub-job contexts
-	_elevated         bool              // set when required elevation succeeds
-	_environment      map[string]string // environment vars set for each job/plugin in the pipeline
-	_taskenvironment  map[string]string // per-task environment for Go plugins
-	_stage            pipeStage         // which pipeline is being run; primaryP, finalP, failP
-	_jobInitialized   bool              // whether a job has started
-	_jobName          string            // name of the running job
-	_jobChannel       string            // channel where job updates are posted
-	_nsExtension      string            // extended namespace
-	_runIndex         int               // run number of a job
-	_verbose          bool              // flag if initializing job was verbose
-	_nextTasks        []TaskSpec        // tasks in the pipeline
-	_finalTasks       []TaskSpec        // clean-up tasks that always run when the pipeline ends
-	_failTasks        []TaskSpec        // clean-up tasks that run when a pipeline fails
+	update          chan interface{}  // Channel for serializing ... ?
+	_parent, _child *botContext       // for sub-job contexts, protected by activeRobots struct
+	elevated        bool              // set when required elevation succeeds
+	environment     map[string]string // environment vars set for each job/plugin in the pipeline
+	taskenvironment map[string]string // per-task environment for Go plugins
+	stage           pipeStage         // which pipeline is being run; primaryP, finalP, failP
+	jobInitialized  bool              // whether a job has started
+	jobName         string            // name of the running job
+	jobChannel      string            // channel where job updates are posted
+	nsExtension     string            // extended namespace
+	runIndex        int               // run number of a job
+	verbose         bool              // flag if initializing job was verbose
+	nextTasks       []TaskSpec        // tasks in the pipeline
+	finalTasks      []TaskSpec        // clean-up tasks that always run when the pipeline ends
+	failTasks       []TaskSpec        // clean-up tasks that run when a pipeline fails
 
-	_failedTask, failedTaskDescription string // set when a task fails
+	failedTask, failedTaskDescription string // set when a task fails
 
-	_pipeName, _pipeDesc string      // name and description of task that started pipeline
-	_currentTask         interface{} // pointer to currently executing task
-	_taskName            string      // name of current task
-	_taskDesc            string      // description for same
-	_osCmd               *exec.Cmd   // running Command, for aborting a pipeline
+	pipeName, pipeDesc string      // name and description of task that started pipeline
+	currentTask        interface{} // pointer to currently executing task
+	taskName           string      // name of current task
+	taskDesc           string      // description for same
+	osCmd              *exec.Cmd   // running Command, for aborting a pipeline
 
-	_exclusiveTag  string // tasks with the same exclusiveTag never run at the same time
-	_exclusive     bool   // indicates task was running exclusively
-	_queueTask     bool   // whether to queue up if Exclusive call failed
-	_abortPipeline bool   // Exclusive request failed w/o queueTask
+	exclusiveTag  string // tasks with the same exclusiveTag never run at the same time
+	exclusive     bool   // indicates task was running exclusively
+	queueTask     bool   // whether to queue up if Exclusive call failed
+	abortPipeline bool   // Exclusive request failed w/o queueTask
 }

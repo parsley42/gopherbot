@@ -213,6 +213,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		Log(robot.Error, "JSON function '%s' called with invalid CallerID '%s'; args: %s", f.FuncName, f.CallerID, f.FuncArgs)
 		return
 	}
+	c.Lock()
 
 	// Generate a synthetic Robot for access to it's methods
 	proto, _ := getProtocol(f.Protocol)
@@ -240,6 +241,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	} else {
 		r.Format = c.cfg.defaultMessageFormat
 	}
+	c.Unlock()
 
 	var (
 		attr  *robot.AttrRet
@@ -362,7 +364,6 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var key string
-		task, _, _ := getTask(c.currentTask)
 		ns := getNameSpace(task)
 		key = ns + ":" + m.Key
 		// Since we're getting raw JSON (=[]byte), we call update directly.

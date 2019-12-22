@@ -20,8 +20,10 @@ type Robot struct {
 }
 
 // getContext returns the botContext for a given Robot
-func (r Robot) getContext() *botContext {
-	return getBotContextInt(r.id)
+func (r Robot) getLockedContext() *botContext {
+	c := getBotContextInt(r.id)
+	c.Lock()
+	return c
 }
 
 // CheckAdmin returns true if the user is a configured administrator of the
@@ -29,7 +31,8 @@ func (r Robot) getContext() *botContext {
 // plugin has multiple commands, some which require admin. Otherwise the plugin
 // should just configure RequireAdmin: true
 func (r Robot) CheckAdmin() bool {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if c.automaticTask {
 		return true
 	}
@@ -49,7 +52,8 @@ func (r Robot) SetParameter(name, value string) bool {
 	if !identifierRe.MatchString(name) {
 		return false
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	c.environment[name] = value
 	return true
 }
@@ -66,7 +70,8 @@ func (r Robot) SetParameter(name, value string) bool {
 // Fails if the new working directory doesn't exist
 // See also: tasks/setworkdir.sh for updating working directory in a pipeline
 func (r Robot) SetWorkingDirectory(path string) bool {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if path == "." {
 		c.workingDirectory = c.baseDirectory
 		return true
@@ -107,7 +112,8 @@ func (r Robot) SetWorkingDirectory(path string) bool {
 // parameters in a pipeline, and for getting long-term parameters such as
 // credentials.
 func (r Robot) GetParameter(key string) string {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	value, ok := c.taskenvironment[key]
 	if ok {
 		return value
@@ -119,7 +125,8 @@ func (r Robot) GetParameter(key string) string {
 // the elevator should always prompt for 2fa; otherwise a configured timeout
 // should apply.
 func (r Robot) Elevate(immediate bool) bool {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	task, _, _ := getTask(c.currentTask)
 	retval := c.elevate(task, immediate)
 	if retval == robot.Success {
@@ -177,7 +184,8 @@ func (r Robot) RandomInt(n int) int {
 // Current attributes:
 // name, alias, fullName, contact
 func (r Robot) GetBotAttribute(a string) *robot.AttrRet {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	a = strings.ToLower(a)
 	ret := robot.Ok
 	var attr string
@@ -236,7 +244,8 @@ and call GetTaskConfig with a double-pointer:
 ... And voila! *pConf is populated with the contents from the configured Config: stanza
 */
 func (r Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	task, _, _ := getTask(c.currentTask)
 	if task.config == nil {
 		Log(robot.Debug, "Task \"%s\" called GetTaskConfig, but no config was found.", task.name)
@@ -266,7 +275,8 @@ func (r Robot) Log(l robot.LogLevel, msg string, v ...interface{}) (logged bool)
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	c := r.getContext()
+	c := r.getLockedContext()
+	defer c.Unlock()
 	if Log(l, msg) && c.logger != nil {
 		line := "LOG " + logLevelToStr(l) + " " + msg
 		c.logger.Log(strings.TrimSpace(line))

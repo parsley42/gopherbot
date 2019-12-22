@@ -209,7 +209,6 @@ func initializePlugins() {
 		tasks:         tasks,
 		automaticTask: true,
 	}
-	c.registerActive(nil)
 	state.Lock()
 	if !state.shuttingDown {
 		state.Unlock()
@@ -227,7 +226,6 @@ func initializePlugins() {
 	} else {
 		state.Unlock()
 	}
-	c.deregister()
 }
 
 // registerTask centralizes the sanity checking logic for RegisterPlugin,
