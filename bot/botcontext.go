@@ -12,6 +12,12 @@ import (
 
 /* botcontext.go - internal methods on botContexts */
 
+/* NOTE on variable conventions:
+c is used for passing a context between methods, mostly to be read
+ctx is used for a context being modified or requiring complex locking
+cu is used for an unlocked context where only unchanging values are read
+*/
+
 // Global robot run number (incrementing int)
 var botRunID = struct {
 	idx int
@@ -167,6 +173,15 @@ func (c *botContext) clone() *botContext {
 	return clone
 }
 
+// ctxState is a snapshot of the current state of the context; should always
+// be accurate for well-written plugins that are not multi-threaded.
+type ctxState struct {
+	currentTask interface{}    // pointer to the current task
+	nsExtension string         // extended namespace for the context
+	cfg         *configuration // configuration for this context
+	tasks       *taskList
+}
+
 // botContext is created for each incoming message, in a separate goroutine that
 // persists for the life of the message, until finally a plugin runs
 // (or doesn't). It could also be called Context, or PipelineState; but for
@@ -201,7 +216,6 @@ type botContext struct {
 	ptype            pipelineType                // what started this pipeline
 
 	// Parent and child values protected by the activeRobots lock
-	update          chan interface{}  // Channel for serializing ... ?
 	_parent, _child *botContext       // for sub-job contexts, protected by activeRobots struct
 	elevated        bool              // set when required elevation succeeds
 	environment     map[string]string // environment vars set for each job/plugin in the pipeline

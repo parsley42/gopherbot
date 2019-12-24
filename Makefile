@@ -14,6 +14,9 @@ modular: CGO = 1
 modular: BUILDTAG = modular
 modular: gopherbot $(MODULES)
 
+matchtest: TESTARGS = -run ${TEST}
+matchtest: test
+
 static: gopherbot
 
 gopherbot: main.go bot/* brains/*/* connectors/*/* goplugins/*/* history/*/*
@@ -49,7 +52,7 @@ clean:
 
 # Run test suite without coverage (see .gopherci/pipeline.sh)
 test:
-	go test -v --tags 'test integration netgo osusergo static_build' -mod vendor -race ./test
+	go test ${TESTARGS} -v --tags 'test integration netgo osusergo static_build' -mod vendor -race ./test
 
 # Generate Stringer methods
 generate:

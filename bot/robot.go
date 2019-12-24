@@ -19,10 +19,29 @@ type Robot struct {
 	id int // For looking up the botContext
 }
 
+// getCtxState returns the current state of the context
+func (r Robot) getCtxState() ctxState {
+	c := getBotContextInt(r.id)
+	c.Lock()
+	cs := ctxState{
+		currentTask: c.currentTask,
+		nsExtension: c.nsExtension,
+		cfg:         c.cfg,
+		tasks:       c.tasks,
+	}
+	c.Unlock()
+	return cs
+}
+
 // getContext returns the botContext for a given Robot
 func (r Robot) getLockedContext() *botContext {
 	c := getBotContextInt(r.id)
 	c.Lock()
+	return c
+}
+
+func (r Robot) getUnlockedContext() *botContext {
+	c := getBotContextInt(r.id)
 	return c
 }
 

@@ -27,13 +27,13 @@ Terminal connector running; Use '|c<channel|?>' to change channel, or '|u<user|?
 
 Occasionally locking changes in the core may result in deadlocks, which should hopefully be detected by the test suite. To assist in debugging these, the `SIGTERM` handler changes for the `test` build tag, causing the robot to perform a full stack dump and panic. Note that if an actual robot deadlocks, it should still accept an `abort` command from an administrator, which will trigger the same behavior.
 
-If `make test` hangs, you can trigger a stack dump with `pkill test.test`; here's an example where updated locking of the `botContext` struct introduced a deadlock in the `reload` command:
+If `make test` hangs, you can trigger a stack dump with `<ctrl-c>`; here's an example where updated locking of the `botContext` struct introduced a deadlock in the `reload` command:
 
 ```shell
 $ make test
 ...
 === RUN   TestReload
-# Test hung here, "pkill test.test" in other terminal...
+# Test hung here, <ctrl-c>
 goroutine 631 [running]:
 github.com/lnxjedi/gopherbot/bot.sigHandle(0xc0000a1f20)
         /home/davidparsley/git/gopherbot/bot/signal_testing.go:24 +0x243

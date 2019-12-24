@@ -33,6 +33,7 @@ func init() {
 func jobcommands(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
 	r := m.(Robot)
 	ctx := r.getLockedContext()
+	ctx.Unlock()
 	tasks := ctx.tasks
 	if command == "init" {
 		return

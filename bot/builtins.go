@@ -35,19 +35,18 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 	if command == "init" {
 		return // ignore init
 	}
+	cs := r.getCtxState()
 	if command == "info" {
-		c := r.getLockedContext()
-		admins := strings.Join(c.cfg.adminUsers, ", ")
-		aliasCh := c.cfg.alias
-		name := c.cfg.botinfo.UserName
+		admins := strings.Join(cs.cfg.adminUsers, ", ")
+		aliasCh := cs.cfg.alias
+		name := cs.cfg.botinfo.UserName
 		if len(name) == 0 {
 			name = "(unknown)"
 		}
-		ID := c.cfg.botinfo.UserID
+		ID := cs.cfg.botinfo.UserID
 		if len(ID) == 0 {
 			ID = "(unknown)"
 		}
-		c.Unlock()
 		var alias string
 		if aliasCh == 0 {
 			alias = "(not set)"
@@ -77,10 +76,8 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 		r.Say(strings.Join(msg, "\n"))
 	}
 	if command == "help" {
-		c := r.getLockedContext()
-		botname := c.cfg.botinfo.UserName
-		tasks := c.tasks
-		c.Unlock()
+		botname := cs.cfg.botinfo.UserName
+		tasks := cs.tasks
 		var term, helpOutput string
 		botSub := `(bot)`
 		hasKeyword := false
@@ -100,7 +97,8 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			}
 			// If a keyword was supplied, give help for all matching commands with channels;
 			// without a keyword, show help for all commands available in the channel.
-			if !c.pluginAvailable(task, hasKeyword, true) {
+			cu := r.getUnlockedContext()
+			if !cu.pluginAvailable(task, hasKeyword, true) {
 				continue
 			}
 			Log(robot.Trace, "Checking help for plugin %s (term: %s)", task.name, term)
@@ -161,7 +159,8 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			// Unless builtins are disabled or reconfigured, 'ping' is available in all channels
 			r.Say("Sorry, I didn't find any commands matching your keyword")
 		case len(helpLines) > tooLong:
-			if !c.directMsg {
+			cu := r.getUnlockedContext()
+			if !cu.directMsg {
 				r.Reply("(the help output was pretty long, so I sent you a private message)")
 				if !hasKeyword {
 					helpOutput = "Command(s) available in channel: " + r.Channel + "\n" + strings.Join(helpLines, lineSeparator)

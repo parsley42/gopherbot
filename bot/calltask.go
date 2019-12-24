@@ -80,7 +80,6 @@ func (c *botContext) callTask(t interface{}, command string, args ...string) (er
 func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
 	var retval robot.TaskRetVal
-
 	ctx.Lock()
 	ctx.currentTask = t
 	r := ctx.makeRobot()

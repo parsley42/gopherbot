@@ -83,7 +83,7 @@ func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipe
 	c.stage = primaryTasks
 	// Once Active, we need to use the Mutex for access to some fields; see
 	// botcontext/type botContext
-	c.registerActive(nil)
+	c.registerActive(parent)
 
 	// A job is always the first task in a pipeline; a new sub-pipeline is created
 	// if a job is added in another pipeline.
@@ -253,7 +253,6 @@ const (
 func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
 	var p []TaskSpec
 	eventEmitted := false
-
 	switch c.stage {
 	case primaryTasks:
 		p = c.nextTasks
