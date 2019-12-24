@@ -1,9 +1,9 @@
 package bot
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"sync"
 	"time"
 
@@ -27,37 +27,29 @@ var botRunID = struct {
 	sync.Mutex{},
 }
 
-// Global persistent maps of Robots running, for Robot lookups in http.go
-var activeRobots = struct {
-	i map[int]*botContext
-	sync.RWMutex
+// Global persistent maps of pipelines running, for listing/forcibly
+// stopping.
+var activePipelines = struct {
+	i    map[int]*botContext
+	eids map[string]struct{}
+	sync.Mutex
 }{
 	make(map[int]*botContext),
-	sync.RWMutex{},
-}
-
-// getBotContextStr is used to look up a botContext in httpd.go, so we do the
-// string conversion here. Note that 0 is never a valid bot id, and this will
-// return nil for any failures.
-func getBotContextStr(id string) *botContext {
-	idx, _ := strconv.Atoi(id)
-	activeRobots.RLock()
-	bot, _ := activeRobots.i[idx]
-	activeRobots.RUnlock()
-	return bot
+	make(map[string]struct{}),
+	sync.Mutex{},
 }
 
 // getBotContextInt is used to look up a botContext from a Robot in when needed.
 // Note that 0 is never a valid bot id, and this will return nil in that case.
 func getBotContextInt(idx int) *botContext {
-	activeRobots.RLock()
-	bot, _ := activeRobots.i[idx]
-	activeRobots.RUnlock()
+	activePipelines.Lock()
+	bot, _ := activePipelines.i[idx]
+	activePipelines.Unlock()
 	return bot
 }
 
-// Assign a bot run number and register it in the global hash of running
-// robots. Should be called before running plugins.
+// Assign a bot run number and register it in the global map of running
+// pipelines.
 func (c *botContext) registerActive(parent *botContext) {
 	if c.Incoming != nil {
 		c.Protocol, _ = getProtocol(c.Incoming.Protocol)
@@ -102,32 +94,51 @@ func (c *botContext) registerActive(parent *botContext) {
 		botRunID.idx = 1
 	}
 	c.id = botRunID.idx
-	c.environment["GOPHER_CALLER_ID"] = fmt.Sprintf("%d", c.id)
 	botRunID.Unlock()
+	var eid string
+	activePipelines.Lock()
+	for {
+		b := make([]byte, 8)
+		rand.Read(b)
+		eid = fmt.Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x", b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
+		if _, ok := activePipelines.eids[eid]; !ok {
+			activePipelines.eids[eid] = struct{}{}
+			break
+		}
+	}
+	c.environment["GOPHER_CALLER_ID"] = eid
+	c.eid = eid
 
-	activeRobots.Lock()
 	if parent != nil {
 		parent._child = c
 		c._parent = parent
 	}
-	activeRobots.i[c.id] = c
-	activeRobots.Unlock()
+	activePipelines.i[c.id] = c
+	activePipelines.Unlock()
 	c.active = true
 }
 
 // deregister must be called for all registered Robots to prevent a memory leak.
 func (c *botContext) deregister() {
-	activeRobots.Lock()
-	delete(activeRobots.i, c.id)
-	activeRobots.Unlock()
+	activePipelines.Lock()
+	delete(activePipelines.i, c.id)
+	delete(activePipelines.eids, c.eid)
+	activePipelines.Unlock()
 	c.active = false
 }
 
 // makeRobot returns a *Robot for plugins; the id lets Robot methods
-// get a reference back to the original context.
-func (c *botContext) makeRobot() Robot {
-	return Robot{
-		&robot.Message{
+// get a reference back to the original context when needed. The Robot
+// should contain a copy of almost all of the information needed for plugins
+// to run.
+func (c *botContext) makeRobot() *Robot {
+	c.Lock()
+	env := make(map[string]string)
+	for k, v := range c.environment {
+		env[k] = v
+	}
+	r := &Robot{
+		Message: &robot.Message{
 			User:            c.User,
 			ProtocolUser:    c.ProtocolUser,
 			Channel:         c.Channel,
@@ -136,8 +147,16 @@ func (c *botContext) makeRobot() Robot {
 			Protocol:        c.Protocol,
 			Incoming:        c.Incoming,
 		},
-		c.id,
+		eid:           c.eid,
+		id:            c.id,
+		automaticTask: c.automaticTask,
+		currentTask:   c.currentTask,
+		nsExtension:   c.nsExtension,
+		cfg:           c.cfg,
+		tasks:         c.tasks,
 	}
+	c.Unlock()
+	return r
 }
 
 // clone() is a convenience function to clone the current context before
@@ -173,15 +192,6 @@ func (c *botContext) clone() *botContext {
 	return clone
 }
 
-// ctxState is a snapshot of the current state of the context; should always
-// be accurate for well-written plugins that are not multi-threaded.
-type ctxState struct {
-	currentTask interface{}    // pointer to the current task
-	nsExtension string         // extended namespace for the context
-	cfg         *configuration // configuration for this context
-	tasks       *taskList
-}
-
 // botContext is created for each incoming message, in a separate goroutine that
 // persists for the life of the message, until finally a plugin runs
 // (or doesn't). It could also be called Context, or PipelineState; but for
@@ -199,6 +209,7 @@ type botContext struct {
 	baseDirectory    string                      // base for this pipeline relative to $(pwd), depends on `Homed`, affects SetWorkingDirectory
 	privileged       bool                        // privileged jobs flip this flag, causing tasks in the pipeline to run in cfgdir
 	id               int                         // incrementing index of Robot threads
+	eid              string                      // unique ID for external tasks
 	tasks            *taskList                   // Pointers to current task configuration at start of pipeline
 	maps             *userChanMaps               // Pointer to current user / channel maps struct
 	repositories     map[string]robot.Repository // Set of configured repositories
@@ -219,17 +230,17 @@ type botContext struct {
 	_parent, _child *botContext       // for sub-job contexts, protected by activeRobots struct
 	elevated        bool              // set when required elevation succeeds
 	environment     map[string]string // environment vars set for each job/plugin in the pipeline
-	taskenvironment map[string]string // per-task environment for Go plugins
-	stage           pipeStage         // which pipeline is being run; primaryP, finalP, failP
-	jobInitialized  bool              // whether a job has started
-	jobName         string            // name of the running job
-	jobChannel      string            // channel where job updates are posted
-	nsExtension     string            // extended namespace
-	runIndex        int               // run number of a job
-	verbose         bool              // flag if initializing job was verbose
-	nextTasks       []TaskSpec        // tasks in the pipeline
-	finalTasks      []TaskSpec        // clean-up tasks that always run when the pipeline ends
-	failTasks       []TaskSpec        // clean-up tasks that run when a pipeline fails
+	//taskenvironment map[string]string // per-task environment for Go plugins
+	stage          pipeStage  // which pipeline is being run; primaryP, finalP, failP
+	jobInitialized bool       // whether a job has started
+	jobName        string     // name of the running job
+	jobChannel     string     // channel where job updates are posted
+	nsExtension    string     // extended namespace
+	runIndex       int        // run number of a job
+	verbose        bool       // flag if initializing job was verbose
+	nextTasks      []TaskSpec // tasks in the pipeline
+	finalTasks     []TaskSpec // clean-up tasks that always run when the pipeline ends
+	failTasks      []TaskSpec // clean-up tasks that run when a pipeline fails
 
 	failedTask, failedTaskDescription string // set when a task fails
 

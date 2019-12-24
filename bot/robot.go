@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lnxjedi/gopherbot/robot"
@@ -16,31 +17,27 @@ import (
 // Robot is the internal struct for a robot.Message
 type Robot struct {
 	*robot.Message
-	id int // For looking up the botContext
+	// external ID used by http.go to look up robot for external tasks
+	eid           string
+	id            int // For looking up the botContext
+	automaticTask bool
+	currentTask   interface{}    // pointer to the current task
+	nsExtension   string         // extended namespace for the context
+	cfg           *configuration // configuration for this context
+	tasks         *taskList
+	environment   map[string]string // environment for Go tasks
 }
 
-// getCtxState returns the current state of the context
-func (r Robot) getCtxState() ctxState {
-	c := getBotContextInt(r.id)
-	c.Lock()
-	cs := ctxState{
-		currentTask: c.currentTask,
-		nsExtension: c.nsExtension,
-		cfg:         c.cfg,
-		tasks:       c.tasks,
-	}
-	c.Unlock()
-	return cs
+// Map of eid to *Robot for external tasks
+var activeRobots = struct {
+	m map[string]*Robot
+	sync.RWMutex
+}{
+	make(map[string]*Robot),
+	sync.RWMutex{},
 }
 
-// getContext returns the botContext for a given Robot
-func (r Robot) getLockedContext() *botContext {
-	c := getBotContextInt(r.id)
-	c.Lock()
-	return c
-}
-
-func (r Robot) getUnlockedContext() *botContext {
+func (r Robot) getContext() *botContext {
 	c := getBotContextInt(r.id)
 	return c
 }
@@ -50,12 +47,10 @@ func (r Robot) getUnlockedContext() *botContext {
 // plugin has multiple commands, some which require admin. Otherwise the plugin
 // should just configure RequireAdmin: true
 func (r Robot) CheckAdmin() bool {
-	c := r.getLockedContext()
-	defer c.Unlock()
-	if c.automaticTask {
+	if r.automaticTask {
 		return true
 	}
-	for _, adminUser := range c.cfg.adminUsers {
+	for _, adminUser := range r.cfg.adminUsers {
 		if r.User == adminUser {
 			emit(AdminCheckPassed)
 			return true
@@ -71,7 +66,8 @@ func (r Robot) SetParameter(name, value string) bool {
 	if !identifierRe.MatchString(name) {
 		return false
 	}
-	c := r.getLockedContext()
+	c := r.getContext()
+	c.Lock()
 	defer c.Unlock()
 	c.environment[name] = value
 	return true
@@ -89,7 +85,8 @@ func (r Robot) SetParameter(name, value string) bool {
 // Fails if the new working directory doesn't exist
 // See also: tasks/setworkdir.sh for updating working directory in a pipeline
 func (r Robot) SetWorkingDirectory(path string) bool {
-	c := r.getLockedContext()
+	c := r.getContext()
+	c.Lock()
 	defer c.Unlock()
 	if path == "." {
 		c.workingDirectory = c.baseDirectory
@@ -131,9 +128,7 @@ func (r Robot) SetWorkingDirectory(path string) bool {
 // parameters in a pipeline, and for getting long-term parameters such as
 // credentials.
 func (r Robot) GetParameter(key string) string {
-	c := r.getLockedContext()
-	defer c.Unlock()
-	value, ok := c.taskenvironment[key]
+	value, ok := r.environment[key]
 	if ok {
 		return value
 	}
