@@ -31,6 +31,9 @@ func (c *botContext) elevate(task *Task, immediate bool) (retval robot.TaskRetVa
 		if elevRet == robot.Success {
 			Log(robot.Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
 			emit(ElevRanSuccess)
+			c.Lock()
+			c.elevated = true
+			c.Unlock()
 			return robot.Success
 		}
 		if elevRet == robot.Fail {

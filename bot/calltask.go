@@ -80,20 +80,23 @@ func (c *botContext) callTask(t interface{}, command string, args ...string) (er
 func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
 	var retval robot.TaskRetVal
-	ctx.Lock()
-	ctx.currentTask = t
-	r := ctx.makeRobot()
-	logger := ctx.logger
-	workdir := ctx.workingDirectory
-	ctx.Unlock()
 	task, plugin, job := getTask(t)
 	isPlugin := plugin != nil
 	isJob := job != nil
+	ctx.Lock()
+	ctx.currentTask = t
+	logger := ctx.logger
+	workdir := ctx.workingDirectory
+	privileged := ctx.privileged
+	ctx.taskName = task.name
+	ctx.taskDesc = task.Description
+	ctx.Unlock()
+	r := ctx.makeRobot()
 	// This should only happen in the rare case that a configured authorizer or elevator is disabled
 	if task.Disabled {
 		msg := fmt.Sprintf("callTask failed on disabled task %s; reason: %s", task.name, task.reason)
 		Log(robot.Error, msg)
-		ctx.debugT(t, msg, false)
+		debugT(t, msg, false)
 		rchan <- taskReturn{msg, robot.ConfigurationError}
 		return
 	}
@@ -117,13 +120,13 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 	}
 
 	if !(task.name == "builtin-admin" && command == "abort") {
-		if ctx.directMsg {
+		if r.directMsg {
 			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: (omitted)", task.name, command))
 		} else {
 			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: %v", task.name, command, args))
 		}
 	}
-	if ctx.directMsg {
+	if r.directMsg {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '(omitted for DM)'", command, task.name)
 	} else {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '%#v'", command, task.name, args)
@@ -131,9 +134,7 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 
 	// Set up the per-task environment, getEnvironment takes lock & releases
 	envhash := ctx.getEnvironment(task)
-	ctx.Lock()
-	ctx.taskenvironment = envhash
-	ctx.Unlock()
+	r.environment = envhash
 
 	if isPlugin && plugin.taskType == taskGo {
 		if command != "init" {
@@ -141,9 +142,6 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 		}
 		Log(robot.Debug, "Calling go plugin: '%s' with args: %q", task.name, args)
 		ret := pluginHandlers[task.name].Handler(r, command, args...)
-		ctx.Lock()
-		ctx.taskenvironment = nil
-		ctx.Unlock()
 		rchan <- taskReturn{"", ret}
 		return
 	} else if task.taskType == taskGo {
@@ -154,12 +152,19 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 		} else {
 			ret = taskHandlers[task.name].Handler(r, args...)
 		}
-		ctx.Lock()
-		ctx.taskenvironment = nil
-		ctx.Unlock()
 		rchan <- taskReturn{"", ret}
 		return
 	}
+	// External task; add lookup for http.go
+	externalRobots.Lock()
+	externalRobots.m[r.eid] = r
+	externalRobots.Unlock()
+	defer func() {
+		externalRobots.Lock()
+		delete(externalRobots.m, r.eid)
+		externalRobots.Unlock()
+	}()
+
 	var taskPath string // full path to the executable
 	var err error
 	if task.Homed {
@@ -181,8 +186,6 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 	Log(robot.Debug, "Calling '%s' with args: %q", taskPath, externalArgs)
 	cmd := exec.Command(taskPath, externalArgs...)
 	ctx.Lock()
-	ctx.taskName = task.name
-	ctx.taskDesc = task.Description
 	ctx.osCmd = cmd
 	ctx.Unlock()
 
@@ -199,7 +202,7 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 			envhash["GOPHER_HOME"] = homePath
 		}
 		// Always set for homed and privileged tasks
-		envhash["GOPHER_WORKSPACE"] = ctx.cfg.workSpace
+		envhash["GOPHER_WORKSPACE"] = r.cfg.workSpace
 		envhash["GOPHER_CONFIGDIR"] = configPath
 		envhash["GOPHER_WORKDIR"] = workdir
 	}
@@ -237,7 +240,7 @@ func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, co
 		}
 	}
 
-	if ctx.privileged {
+	if privileged {
 		if isPlugin && !plugin.Privileged {
 			dropThreadPriv(fmt.Sprintf("task %s / %s", task.name, command))
 		} else {

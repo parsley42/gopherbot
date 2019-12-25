@@ -38,11 +38,11 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 		if task.Disabled {
 			msg := fmt.Sprintf("Skipping disabled task '%s', reason: %s", task.name, task.reason)
 			Log(robot.Trace, msg)
-			c.debugT(t, msg, false)
+			debugT(t, msg, false)
 			continue
 		}
 		Log(robot.Trace, "Checking availability of task '%s' in channel '%s' for user '%s', active in %d channels (allchannels: %t)", task.name, c.Channel, c.User, len(task.Channels), task.AllChannels)
-		ok := c.pluginAvailable(task, false, verboseOnly)
+		ok := r.pluginAvailable(task, false, verboseOnly)
 		if !ok {
 			Log(robot.Trace, "Task '%s' not available for user '%s' in channel '%s', doesn't meet criteria", task.name, c.User, c.Channel)
 			continue
@@ -52,20 +52,20 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 		switch pipelineType {
 		case plugCommand:
 			if len(plugin.CommandMatchers) == 0 {
-				c.debugT(t, fmt.Sprintf("Plugin has no command matchers, skipping command check"), false)
+				debugT(t, fmt.Sprintf("Plugin has no command matchers, skipping command check"), false)
 				continue
 			}
 			matchers = plugin.CommandMatchers
 			ctype = "command"
 		case plugMessage:
 			if len(plugin.MessageMatchers) == 0 {
-				c.debugT(t, fmt.Sprintf("Plugin has no message matchers, skipping message check"), true)
+				debugT(t, fmt.Sprintf("Plugin has no message matchers, skipping message check"), true)
 				continue
 			}
 			if !c.listedUser && !plugin.MatchUnlisted && !c.isCommand {
 				msg := fmt.Sprintf("ignoring unlisted user '%s' for plugin '%s' ambient messages", c.User, task.name)
 				Log(robot.Trace, msg)
-				c.debugT(t, msg, false)
+				debugT(t, msg, false)
 				continue
 			}
 			matchers = plugin.MessageMatchers
@@ -73,13 +73,13 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 		}
 		Log(robot.Trace, "Task '%s' is active, will check for matches", task.name)
 		cmsg := spaceRe.ReplaceAllString(c.msg, " ")
-		c.debugT(t, fmt.Sprintf("Checking %d %s matchers against message: '%s'", len(matchers), ctype, cmsg), verboseOnly)
+		debugT(t, fmt.Sprintf("Checking %d %s matchers against message: '%s'", len(matchers), ctype, cmsg), verboseOnly)
 		for _, matcher := range matchers {
 			Log(robot.Trace, "Checking '%s' against '%s'", cmsg, matcher.Regex)
 			matches := matcher.re.FindAllStringSubmatch(cmsg, -1)
 			matched := false
 			if matches != nil {
-				c.debugT(t, fmt.Sprintf("Matched %s regex '%s', command: %s", ctype, matcher.Regex, matcher.Command), false)
+				debugT(t, fmt.Sprintf("Matched %s regex '%s', command: %s", ctype, matcher.Regex, matcher.Command), false)
 				matched = true
 				Log(robot.Trace, "Message '%s' matches command '%s'", cmsg, matcher.Command)
 				cmdArgs = matches[0][1:]
@@ -132,7 +132,7 @@ func (c *botContext) checkPluginMatchersAndRun(pipelineType pipelineType) (messa
 					shortTermMemories.Unlock()
 				}
 			} else {
-				c.debugT(t, fmt.Sprintf("Not matched: %s", matcher.Regex), verboseOnly)
+				debugT(t, fmt.Sprintf("Not matched: %s", matcher.Regex), verboseOnly)
 			}
 			if matched {
 				if messageMatched {

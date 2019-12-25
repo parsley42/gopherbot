@@ -523,11 +523,10 @@ func (r Robot) CheckoutDatum(key string, datum interface{}, rw bool) (locktoken 
 		Log(robot.Error, "Invalid memory key, ':' disallowed: %s", key)
 		return
 	}
-	cs := r.getCtxState()
-	task, _, _ := getTask(cs.currentTask)
+	task, _, _ := getTask(r.currentTask)
 	ns := getNameSpace(task)
-	if len(cs.nsExtension) > 0 {
-		key = ns + ":" + cs.nsExtension + ":" + key
+	if len(r.nsExtension) > 0 {
+		key = ns + ":" + r.nsExtension + ":" + key
 	} else {
 		key = ns + ":" + key
 	}
@@ -542,11 +541,10 @@ func (r Robot) CheckinDatum(key, locktoken string) {
 	if strings.ContainsRune(key, ':') {
 		return
 	}
-	cs := r.getCtxState()
-	task, _, _ := getTask(cs.currentTask)
+	task, _, _ := getTask(r.currentTask)
 	ns := getNameSpace(task)
-	if len(cs.nsExtension) > 0 {
-		key = ns + ":" + cs.nsExtension + ":" + key
+	if len(r.nsExtension) > 0 {
+		key = ns + ":" + r.nsExtension + ":" + key
 	} else {
 		key = ns + ":" + key
 	}
@@ -561,11 +559,10 @@ func (r Robot) UpdateDatum(key, locktoken string, datum interface{}) (ret robot.
 		Log(robot.Error, "Invalid memory key, ':' disallowed: %s", key)
 		return robot.InvalidDatumKey
 	}
-	cs := r.getCtxState()
-	task, _, _ := getTask(cs.currentTask)
+	task, _, _ := getTask(r.currentTask)
 	ns := getNameSpace(task)
-	if len(cs.nsExtension) > 0 {
-		key = ns + ":" + cs.nsExtension + ":" + key
+	if len(r.nsExtension) > 0 {
+		key = ns + ":" + r.nsExtension + ":" + key
 	} else {
 		key = ns + ":" + key
 	}

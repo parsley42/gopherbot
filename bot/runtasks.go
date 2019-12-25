@@ -332,9 +332,9 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 			child := c.clone()
 			ret = child.startPipeline(c, t, ptype, command, args...)
 		} else {
-			c.debugT(t, fmt.Sprintf("Running task with command '%s' and arguments: %v", command, args), false)
+			debugT(t, fmt.Sprintf("Running task with command '%s' and arguments: %v", command, args), false)
 			errString, ret = c.callTask(t, command, args...)
-			c.debugT(t, fmt.Sprintf("Task finished with return value: %s", ret), false)
+			debugT(t, fmt.Sprintf("Task finished with return value: %s", ret), false)
 			if c.stage != finalTasks && ret != robot.Normal {
 				c.failedTask = task.name
 				if len(args) > 0 {

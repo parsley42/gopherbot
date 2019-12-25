@@ -30,7 +30,8 @@ var runQueues = struct {
 // always succeed.
 // The safest way to use Exclusive is near the beginning of a pipeline.
 func (r *Robot) Exclusive(tag string, queueTask bool) (success bool) {
-	c := r.getLockedContext()
+	c := r.getContext()
+	c.Lock()
 	defer c.Unlock()
 	if c.exclusive {
 		// TODO: make sure tag matches, or error! Note that it's legit and normal

@@ -253,20 +253,20 @@ func (r Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, a
 			return robot.MissingArguments
 		}
 		cmsg := args[0]
-		c.debugT(t, fmt.Sprintf("Checking %d command matchers against pipe command: '%s'", len(plugin.CommandMatchers), cmsg), false)
+		debugT(t, fmt.Sprintf("Checking %d command matchers against pipe command: '%s'", len(plugin.CommandMatchers), cmsg), false)
 		matched := false
 		for _, matcher := range plugin.CommandMatchers {
 			Log(robot.Trace, "Checking '%s' against '%s'", cmsg, matcher.Regex)
 			matches := matcher.re.FindAllStringSubmatch(cmsg, -1)
 			if matches != nil {
-				c.debugT(t, fmt.Sprintf("Matched command regex '%s', command: %s", matcher.Regex, matcher.Command), false)
+				debugT(t, fmt.Sprintf("Matched command regex '%s', command: %s", matcher.Regex, matcher.Command), false)
 				matched = true
 				Log(robot.Trace, "pipeline command '%s' matches '%s'", cmsg, matcher.Command)
 				command = matcher.Command
 				cmdargs = matches[0][1:]
 				break
 			} else {
-				c.debugT(t, fmt.Sprintf("Not matched: %s", matcher.Regex), false)
+				debugT(t, fmt.Sprintf("Not matched: %s", matcher.Regex), false)
 			}
 		}
 		if !matched {

@@ -17,7 +17,7 @@ type debuggingTask struct {
 }
 
 var taskDebug = struct {
-	p map[string]*debuggingTask // map of taskID to the debuggingTask struct
+	p map[string]*debuggingTask // map of task.name to the debuggingTask struct
 	sync.RWMutex
 }{
 	make(map[string]*debuggingTask),
@@ -26,25 +26,20 @@ var taskDebug = struct {
 
 // If the debug statement requests verboseonly, then the user will only get the
 // message if verbose debugging was requested.
-func (c *botContext) debugT(t interface{}, msg string, verboseonly bool) {
+func debugT(t interface{}, msg string, verboseonly bool) {
 	if t == nil {
 		return
 	}
 	task, _, _ := getTask(t)
-	c.debugTask(task, msg, verboseonly)
+	debugTask(task, msg, verboseonly)
 }
 
-func (c *botContext) debugTask(task *Task, msg string, verboseonly bool) {
-	var taskID string
+func debugTask(task *Task, msg string, verboseonly bool) {
 	if task == nil {
 		return
 	}
-	taskID = task.taskID
-	if len(taskID) == 0 {
-		return
-	}
 	taskDebug.RLock()
-	ppd, _ := taskDebug.p[taskID]
+	ppd, _ := taskDebug.p[task.name]
 	taskDebug.RUnlock()
 	var plugName string
 	if ppd == nil {

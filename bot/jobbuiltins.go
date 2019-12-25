@@ -403,7 +403,7 @@ func (c *botContext) jobAvailable(taskName string) interface{} {
 	// If there's already a job initialized, this is a pipeline task for that
 	// job, and should be available regardless of channel.
 	if !c.jobInitialized && r.Channel != task.Channel {
-		c.debugTask(task, fmt.Sprintf("not available in channel '%s'", task.Channel), false)
+		debugTask(task, fmt.Sprintf("not available in channel '%s'", task.Channel), false)
 		r.Say("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel)
 		return nil
 	}
@@ -431,7 +431,7 @@ func (c *botContext) jobAvailable(taskName string) interface{} {
 		}
 		if !userOk {
 			r.Say("Sorry, you're not on the list of allowed users for that job")
-			c.debugTask(task, "user is not on the list of allowed users", false)
+			debugTask(task, "user is not on the list of allowed users", false)
 			return nil
 		}
 	}

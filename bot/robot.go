@@ -14,13 +14,15 @@ import (
 /* robot_methods.go defines some convenience functions on struct Robot to
    simplify use by plugins. */
 
-// Robot is the internal struct for a robot.Message
+// Robot is the internal struct for a robot.Message, with bits copied
+// from the botContext; see that struct for better descriptions.
 type Robot struct {
 	*robot.Message
 	// external ID used by http.go to look up robot for external tasks
 	eid           string
 	id            int // For looking up the botContext
 	automaticTask bool
+	directMsg     bool
 	currentTask   interface{}    // pointer to the current task
 	nsExtension   string         // extended namespace for the context
 	cfg           *configuration // configuration for this context
@@ -29,7 +31,7 @@ type Robot struct {
 }
 
 // Map of eid to *Robot for external tasks
-var activeRobots = struct {
+var externalRobots = struct {
 	m map[string]*Robot
 	sync.RWMutex
 }{

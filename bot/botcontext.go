@@ -98,9 +98,10 @@ func (c *botContext) registerActive(parent *botContext) {
 	var eid string
 	activePipelines.Lock()
 	for {
-		b := make([]byte, 8)
+		// 4 bytes of entropy per pipeline
+		b := make([]byte, 4)
 		rand.Read(b)
-		eid = fmt.Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x", b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7])
+		eid = fmt.Sprintf("%02x%02x%02x%02x", b[0], b[1], b[2], b[3])
 		if _, ok := activePipelines.eids[eid]; !ok {
 			activePipelines.eids[eid] = struct{}{}
 			break
@@ -133,10 +134,6 @@ func (c *botContext) deregister() {
 // to run.
 func (c *botContext) makeRobot() *Robot {
 	c.Lock()
-	env := make(map[string]string)
-	for k, v := range c.environment {
-		env[k] = v
-	}
 	r := &Robot{
 		Message: &robot.Message{
 			User:            c.User,
@@ -150,6 +147,7 @@ func (c *botContext) makeRobot() *Robot {
 		eid:           c.eid,
 		id:            c.id,
 		automaticTask: c.automaticTask,
+		directMsg:     c.directMsg,
 		currentTask:   c.currentTask,
 		nsExtension:   c.nsExtension,
 		cfg:           c.cfg,
@@ -226,8 +224,8 @@ type botContext struct {
 	active           bool                        // whether this context has been registered as active
 	ptype            pipelineType                // what started this pipeline
 
-	// Parent and child values protected by the activeRobots lock
-	_parent, _child *botContext       // for sub-job contexts, protected by activeRobots struct
+	// Parent and child values protected by the activePipelines lock
+	_parent, _child *botContext
 	elevated        bool              // set when required elevation succeeds
 	environment     map[string]string // environment vars set for each job/plugin in the pipeline
 	//taskenvironment map[string]string // per-task environment for Go plugins
