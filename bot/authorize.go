@@ -6,9 +6,8 @@ const technicalAuthError = "Sorry, authorization failed due to a problem with th
 const configAuthError = "Sorry, authorization failed due to a configuration error"
 
 // Check for a configured Authorizer and check authorization
-func (c *botContext) checkAuthorization(t interface{}, command string, args ...string) (retval robot.TaskRetVal) {
+func (r Robot) checkAuthorization(t interface{}, command string, args ...string) (retval robot.TaskRetVal) {
 	task, plugin, _ := getTask(t)
-	r := c.makeRobot()
 	isPlugin := plugin != nil
 	if isPlugin {
 		if !(plugin.AuthorizeAllCommands || len(plugin.AuthorizedCommands) > 0) {
@@ -38,7 +37,7 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 			return robot.Success
 		}
 	}
-	defaultAuthorizer := c.cfg.defaultAuthorizer
+	defaultAuthorizer := r.cfg.defaultAuthorizer
 	if isPlugin && task.Authorizer == "" && defaultAuthorizer == "" {
 		Log(robot.Audit, "Plugin '%s' requires authorization for command '%s', but no authorizer configured", task.name, command)
 		r.Say(configAuthError)
@@ -49,14 +48,19 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 	if task.Authorizer != "" {
 		authorizer = task.Authorizer
 	}
-	authTask := c.tasks.getTaskByName(authorizer)
+	authTask := r.tasks.getTaskByName(authorizer)
 	if authTask == nil {
 		return robot.ConfigurationError
 	}
 	_, authPlug, _ := getTask(authTask)
 	if authPlug != nil {
+		c := r.getContext()
 		args = append([]string{task.name, task.AuthRequire, command}, args...)
 		_, authRet := c.callTask(authPlug, "authorize", args...)
+		// restore the current task, changed in callTask
+		c.Lock()
+		c.currentTask = r.currentTask
+		c.Unlock()
 		if authRet == robot.Success {
 			Log(robot.Audit, "Authorization succeeded by authorizer '%s' for user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, c.User, command, task.name, c.Channel, task.AuthRequire)
 			emit(AuthRanSuccess)
@@ -85,7 +89,7 @@ func (c *botContext) checkAuthorization(t interface{}, command string, args ...s
 		emit(AuthRanFailOther)
 		return robot.MechanismFail
 	}
-	Log(robot.Audit, "Auth plugin '%s' not found while authenticating user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", task.Authorizer, c.User, command, task.name, c.Channel, task.AuthRequire)
+	Log(robot.Audit, "Auth plugin '%s' not found while authenticating user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", task.Authorizer, r.User, command, task.name, r.Channel, task.AuthRequire)
 	r.Say(technicalAuthError)
 	emit(AuthNoRunNotFound)
 	return robot.ConfigurationError

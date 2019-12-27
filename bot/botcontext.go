@@ -10,7 +10,7 @@ import (
 	"github.com/lnxjedi/gopherbot/robot"
 )
 
-/* botcontext.go - internal methods on botContexts */
+/* pipeContext.go - internal methods on pipeContexts */
 
 /* NOTE on variable conventions:
 c is used for passing a context between methods, mostly to be read
@@ -18,8 +18,8 @@ ctx is used for a context being modified or requiring complex locking
 cu is used for an unlocked context where only unchanging values are read
 */
 
-// Global robot run number (incrementing int)
-var botRunID = struct {
+// Global context run number (incrementing int)
+var contextID = struct {
 	idx int
 	sync.Mutex
 }{
@@ -27,21 +27,33 @@ var botRunID = struct {
 	sync.Mutex{},
 }
 
+// Get the next context ID
+func getCtxID() int {
+	contextID.Lock()
+	contextID.idx++
+	if contextID.idx == 0 {
+		contextID.idx = 1
+	}
+	ctxid := contextID.idx
+	contextID.Unlock()
+	return ctxid
+}
+
 // Global persistent maps of pipelines running, for listing/forcibly
 // stopping.
 var activePipelines = struct {
-	i    map[int]*botContext
+	i    map[int]*pipeContext
 	eids map[string]struct{}
 	sync.Mutex
 }{
-	make(map[int]*botContext),
+	make(map[int]*pipeContext),
 	make(map[string]struct{}),
 	sync.Mutex{},
 }
 
-// getBotContextInt is used to look up a botContext from a Robot in when needed.
+// getpipeContextInt is used to look up a pipeContext from a Robot in when needed.
 // Note that 0 is never a valid bot id, and this will return nil in that case.
-func getBotContextInt(idx int) *botContext {
+func getpipeContextInt(idx int) *pipeContext {
 	activePipelines.Lock()
 	bot, _ := activePipelines.i[idx]
 	activePipelines.Unlock()
@@ -50,7 +62,7 @@ func getBotContextInt(idx int) *botContext {
 
 // Assign a bot run number and register it in the global map of running
 // pipelines.
-func (c *botContext) registerActive(parent *botContext) {
+func (c *pipeContext) registerActive(parent *pipeContext) {
 	if c.Incoming != nil {
 		c.Protocol, _ = getProtocol(c.Incoming.Protocol)
 	}
@@ -88,13 +100,6 @@ func (c *botContext) registerActive(parent *botContext) {
 
 	c.environment["GOPHER_INSTALLDIR"] = installPath
 
-	botRunID.Lock()
-	botRunID.idx++
-	if botRunID.idx == 0 {
-		botRunID.idx = 1
-	}
-	c.id = botRunID.idx
-	botRunID.Unlock()
 	var eid string
 	activePipelines.Lock()
 	for {
@@ -120,7 +125,7 @@ func (c *botContext) registerActive(parent *botContext) {
 }
 
 // deregister must be called for all registered Robots to prevent a memory leak.
-func (c *botContext) deregister() {
+func (c *pipeContext) deregister() {
 	activePipelines.Lock()
 	delete(activePipelines.i, c.id)
 	delete(activePipelines.eids, c.eid)
@@ -132,7 +137,7 @@ func (c *botContext) deregister() {
 // get a reference back to the original context when needed. The Robot
 // should contain a copy of almost all of the information needed for plugins
 // to run.
-func (c *botContext) makeRobot() *Robot {
+func (c *pipeContext) makeRobot() *Robot {
 	c.Lock()
 	r := &Robot{
 		Message: &robot.Message{
@@ -144,14 +149,20 @@ func (c *botContext) makeRobot() *Robot {
 			Protocol:        c.Protocol,
 			Incoming:        c.Incoming,
 		},
-		eid:           c.eid,
-		id:            c.id,
-		automaticTask: c.automaticTask,
-		directMsg:     c.directMsg,
-		currentTask:   c.currentTask,
-		nsExtension:   c.nsExtension,
-		cfg:           c.cfg,
-		tasks:         c.tasks,
+		eid:            c.eid,
+		id:             c.id,
+		automaticTask:  c.automaticTask,
+		directMsg:      c.directMsg,
+		jobInitialized: c.jobInitialized,
+		elevated:       c.elevated,
+		isCommand:      c.isCommand,
+		listedUser:     c.listedUser,
+		BotUser:        c.BotUser,
+		msg:            c.msg,
+		currentTask:    c.currentTask,
+		nsExtension:    c.nsExtension,
+		cfg:            c.cfg,
+		tasks:          c.tasks,
 	}
 	c.Unlock()
 	return r
@@ -160,9 +171,10 @@ func (c *botContext) makeRobot() *Robot {
 // clone() is a convenience function to clone the current context before
 // starting a new goroutine for startPipeline. Used by e.g. triggered jobs,
 // SpawnJob(), and runPipeline for sub-jobs.
-func (c *botContext) clone() *botContext {
+func (c *pipeContext) clone() *pipeContext {
+	ctxid := getCtxID()
 	c.Lock()
-	clone := &botContext{
+	clone := &pipeContext{
 		User:             c.User,
 		ProtocolUser:     c.ProtocolUser,
 		Channel:          c.Channel,
@@ -170,6 +182,7 @@ func (c *botContext) clone() *botContext {
 		Incoming:         c.Incoming,
 		directMsg:        c.directMsg,
 		BotUser:          c.BotUser,
+		id:               ctxid,
 		listedUser:       c.listedUser,
 		pipeName:         c.pipeName,
 		pipeDesc:         c.pipeDesc,
@@ -190,11 +203,11 @@ func (c *botContext) clone() *botContext {
 	return clone
 }
 
-// botContext is created for each incoming message, in a separate goroutine that
+// pipeContext is created for each incoming message, in a separate goroutine that
 // persists for the life of the message, until finally a plugin runs
 // (or doesn't). It could also be called Context, or PipelineState; but for
 // use by plugins, it's best left as Robot.
-type botContext struct {
+type pipeContext struct {
 	sync.Mutex                                   // Lock to protect the bot context when pipeline running
 	User             string                      // The user who sent the message; this can be modified for replying to an arbitrary user
 	Channel          string                      // The channel where the message was received, or "" for a direct message. This can be modified to send a message to an arbitrary channel.
@@ -225,7 +238,7 @@ type botContext struct {
 	ptype            pipelineType                // what started this pipeline
 
 	// Parent and child values protected by the activePipelines lock
-	_parent, _child *botContext
+	_parent, _child *pipeContext
 	elevated        bool              // set when required elevation succeeds
 	environment     map[string]string // environment vars set for each job/plugin in the pipeline
 	//taskenvironment map[string]string // per-task environment for Go plugins

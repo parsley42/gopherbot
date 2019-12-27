@@ -15,19 +15,25 @@ import (
    simplify use by plugins. */
 
 // Robot is the internal struct for a robot.Message, with bits copied
-// from the botContext; see that struct for better descriptions.
+// from the pipeContext; see that struct for better descriptions.
 type Robot struct {
 	*robot.Message
 	// external ID used by http.go to look up robot for external tasks
-	eid           string
-	id            int // For looking up the botContext
-	automaticTask bool
-	directMsg     bool
-	currentTask   interface{}    // pointer to the current task
-	nsExtension   string         // extended namespace for the context
-	cfg           *configuration // configuration for this context
-	tasks         *taskList
-	environment   map[string]string // environment for Go tasks
+	eid            string
+	id             int // For looking up the pipeContext
+	automaticTask  bool
+	directMsg      bool
+	jobInitialized bool
+	elevated       bool
+	isCommand      bool
+	listedUser     bool
+	BotUser        bool
+	msg            string
+	currentTask    interface{}    // pointer to the current task
+	nsExtension    string         // extended namespace for the context
+	cfg            *configuration // configuration for this context
+	tasks          *taskList
+	environment    map[string]string // environment for Go tasks
 }
 
 // Map of eid to *Robot for external tasks
@@ -39,8 +45,8 @@ var externalRobots = struct {
 	sync.RWMutex{},
 }
 
-func (r Robot) getContext() *botContext {
-	c := getBotContextInt(r.id)
+func (r Robot) getContext() *pipeContext {
+	c := getpipeContextInt(r.id)
 	return c
 }
 

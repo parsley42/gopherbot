@@ -300,7 +300,7 @@ func (r Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, a
 	return robot.Ok
 }
 
-// SpawnJob creates a new botContext in a new goroutine to run a
+// SpawnJob creates a new pipeContext in a new goroutine to run a
 // job. It's primary use is for CI/CD applications where a single
 // triggered job may want to spawn several jobs when e.g. a dependency for
 // multiple projects is updated.

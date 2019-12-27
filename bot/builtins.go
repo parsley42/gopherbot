@@ -31,7 +31,7 @@ func init() {
 /* builtin plugins, like help */
 
 func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(Robot)
+	r := m.(*Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -179,7 +179,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 }
 
 func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(Robot)
+	r := m.(*Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -291,7 +291,7 @@ var rightback = []string{
 }
 
 func logging(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(Robot)
+	r := m.(*Robot)
 	switch command {
 	case "init":
 		return
@@ -324,7 +324,7 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 	if command == "init" {
 		return // ignore init
 	}
-	r := m.(Robot)
+	r := m.(*Robot)
 	switch command {
 	case "reload":
 		err := loadConfig(false)

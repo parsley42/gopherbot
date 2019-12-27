@@ -203,7 +203,7 @@ func initializePlugins() {
 	cfg := currentCfg.configuration
 	tasks := currentCfg.taskList
 	currentCfg.RUnlock()
-	c := &botContext{
+	c := &pipeContext{
 		environment:   make(map[string]string),
 		cfg:           cfg,
 		tasks:         tasks,

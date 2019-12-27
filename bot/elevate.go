@@ -8,9 +8,8 @@ const configElevError = "Sorry, elevation failed due to a configuration error"
 // Elevator plugins provide an elevate method for checking if the user
 // can run a privileged command.
 
-func (c *botContext) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
-	r := c.makeRobot()
-	defaultElevator := c.cfg.defaultElevator
+func (r *Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
+	defaultElevator := r.cfg.defaultElevator
 	if task.Elevator == "" && defaultElevator == "" {
 		Log(robot.Audit, "Task '%s' requires elevation, but no elevator configured", task.name)
 		r.Say(configElevError)
@@ -21,52 +20,55 @@ func (c *botContext) elevate(task *Task, immediate bool) (retval robot.TaskRetVa
 	if task.Elevator != "" {
 		elevator = task.Elevator
 	}
-	_, ePlug, _ := getTask(c.tasks.getTaskByName(elevator))
+	_, ePlug, _ := getTask(r.tasks.getTaskByName(elevator))
 	if ePlug != nil {
 		immedString := "true"
 		if !immediate {
 			immedString = "false"
 		}
+		c := r.getContext()
 		_, elevRet := c.callTask(ePlug, "elevate", immedString)
-		if elevRet == robot.Success {
-			Log(robot.Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
+		elevated := elevRet == robot.Success
+		c.Lock()
+		c.elevated = elevated
+		c.currentTask = r.currentTask
+		c.Unlock()
+		if elevated {
+			Log(robot.Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			emit(ElevRanSuccess)
-			c.Lock()
-			c.elevated = true
-			c.Unlock()
 			return robot.Success
 		}
 		if elevRet == robot.Fail {
-			Log(robot.Audit, "Elevation FAILED by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
+			Log(robot.Audit, "Elevation FAILED by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			r.Say("Sorry, this command requires elevation")
 			emit(ElevRanFail)
 			return robot.Fail
 		}
 		if elevRet == robot.MechanismFail {
-			Log(robot.Audit, "Elevator plugin '%s' mechanism failure while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
+			Log(robot.Audit, "Elevator plugin '%s' mechanism failure while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			r.Say(technicalElevError)
 			emit(ElevRanMechanismFailed)
 			return robot.MechanismFail
 		}
 		if elevRet == robot.Normal {
-			Log(robot.Audit, "Elevator plugin '%s' returned 'Normal' (0) instead of 'Success' (1), failing elevation in '%s' for task '%s' in channel '%s'", ePlug.name, c.User, task.name, c.Channel)
+			Log(robot.Audit, "Elevator plugin '%s' returned 'Normal' (0) instead of 'Success' (1), failing elevation in '%s' for task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			r.Say(technicalElevError)
 			emit(ElevRanFailNormal)
 			return robot.MechanismFail
 		}
-		Log(robot.Audit, "Elevator plugin '%s' exit code %d while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, retval, c.User, task.name, c.Channel)
+		Log(robot.Audit, "Elevator plugin '%s' exit code %d while elevating user '%s' for task '%s' in channel '%s'", ePlug.name, retval, r.User, task.name, r.Channel)
 		r.Say(technicalElevError)
 		emit(ElevRanFailOther)
 		return robot.MechanismFail
 	}
-	Log(robot.Audit, "Elevator plugin '%s' not found while elevating user '%s' for task '%s' in channel '%s'", task.Elevator, c.User, task.name, c.Channel)
+	Log(robot.Audit, "Elevator plugin '%s' not found while elevating user '%s' for task '%s' in channel '%s'", task.Elevator, r.User, task.name, r.Channel)
 	r.Say(technicalElevError)
 	emit(ElevNoRunNotFound)
 	return robot.ConfigurationError
 }
 
 // Check for a configured Elevator and check elevation
-func (c *botContext) checkElevation(t interface{}, command string) (retval robot.TaskRetVal, required bool) {
+func (r *Robot) checkElevation(t interface{}, command string) (retval robot.TaskRetVal, required bool) {
 	task, plugin, _ := getTask(t)
 	isPlugin := plugin != nil
 	immediate := false
@@ -96,7 +98,7 @@ func (c *botContext) checkElevation(t interface{}, command string) (retval robot
 	if !elevationRequired {
 		return robot.Success, false
 	}
-	retval = c.elevate(task, immediate)
+	retval = r.elevate(task, immediate)
 	if retval == robot.Success {
 		return robot.Success, true
 	}

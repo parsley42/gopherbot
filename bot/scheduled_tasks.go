@@ -68,9 +68,9 @@ func runScheduledTask(t interface{}, ts TaskSpec, cfg *configuration, tasks *tas
 		return
 	}
 
-	// Create the botContext to carry state through the pipeline.
+	// Create the pipeContext to carry state through the pipeline.
 	// startPipeline will take care of registerActive()
-	c := &botContext{
+	c := &pipeContext{
 		Channel:       task.Channel,
 		cfg:           cfg,
 		tasks:         tasks,

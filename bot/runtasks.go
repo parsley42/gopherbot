@@ -22,7 +22,7 @@ var envPassThrough = []string{
 // Called from dispatch: checkPluginMatchersAndRun,
 // jobcommands: checkJobMatchersAndRun or ScheduledTask,
 // runPipeline.
-func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
+func (r *Robot) startPipeline(parent *pipeContext, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
 	task, plugin, job := getTask(t)
 	state.RLock()
 	if state.shuttingDown {
@@ -34,41 +34,47 @@ func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipe
 	raiseThreadPriv(fmt.Sprintf("new pipeline for task %s / %s", task.name, command))
 	isJob := job != nil
 	isPlugin := plugin != nil
-	ppipeName := c.pipeName
-	ppipeDesc := c.pipeDesc
-	c.pipeName = task.name
-	c.pipeDesc = task.Description
+	parent.Lock()
+	ppipeName := parent.pipeName
+	ppipeDesc := parent.pipeDesc
+	parent.Unlock()
+	// NOTE: we don't need to worry about locking until the pipeline actually starts
+	ctx := r.getContext()
+	ctx.pipeName = task.name
+	ctx.pipeDesc = task.Description
 	if isPlugin {
-		c.privileged = plugin.Privileged
+		ctx.privileged = plugin.Privileged
 	} else {
-		c.privileged = job.Privileged
+		ctx.privileged = job.Privileged
 	}
-	if c.privileged {
+	if ctx.privileged {
 		if len(homePath) > 0 {
-			c.environment["GOPHER_HOME"] = homePath
+			ctx.environment["GOPHER_HOME"] = homePath
 		}
 	}
 	// Initial baseDirectory and workingDirectory are the same; SetWorkingDirectory
 	// modifies workingDirectory.
 	if task.Homed {
-		c.baseDirectory = "."
-		c.workingDirectory = "."
-		c.environment["GOPHER_WORKSPACE"] = c.cfg.workSpace
-		c.environment["GOPHER_CONFIGDIR"] = configPath
+		ctx.baseDirectory = "."
+		ctx.workingDirectory = "."
+		ctx.environment["GOPHER_WORKSPACE"] = r.cfg.workSpace
+		ctx.environment["GOPHER_CONFIGDIR"] = configPath
 	} else {
-		c.baseDirectory = c.cfg.workSpace
-		c.workingDirectory = c.cfg.workSpace
+		ctx.baseDirectory = ctx.cfg.workSpace
+		ctx.workingDirectory = ctx.cfg.workSpace
 	}
 	// Spawned pipelines keep the original ptype
-	if c.ptype == unset {
-		c.ptype = ptype
+	if ctx.ptype == unset {
+		ctx.ptype = ptype
 	}
+	ctx.timeZone = r.cfg.timeZone
+	// redundant but explicit
+	ctx.stage = primaryTasks
 	// TODO: Replace the waitgroup, pipelinesRunning, defer func(), etc.
 	state.Add(1)
 	state.Lock()
 	state.pipelinesRunning++
 	state.Unlock()
-	c.timeZone = c.cfg.timeZone
 	defer func() {
 		state.Lock()
 		state.pipelinesRunning--
@@ -79,10 +85,8 @@ func (c *botContext) startPipeline(parent *botContext, t interface{}, ptype pipe
 		state.Unlock()
 	}()
 
-	// redundant but explicit
-	c.stage = primaryTasks
 	// Once Active, we need to use the Mutex for access to some fields; see
-	// botcontext/type botContext
+	// pipeContext/type pipeContext
 	c.registerActive(parent)
 
 	// A job is always the first task in a pipeline; a new sub-pipeline is created
@@ -250,7 +254,7 @@ const (
 	failTasks
 )
 
-func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
+func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
 	var p []TaskSpec
 	eventEmitted := false
 	switch c.stage {
@@ -411,7 +415,7 @@ func (c *botContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot
 	return
 }
 
-func (c *botContext) getEnvironment(task *Task) map[string]string {
+func (c *pipeContext) getEnvironment(task *Task) map[string]string {
 	c.Lock()
 	defer c.Unlock()
 	envhash := make(map[string]string)

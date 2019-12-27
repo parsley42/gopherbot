@@ -70,14 +70,14 @@ type taskReturn struct {
 }
 
 // callTask does the work of running a job, task or plugin with a command and arguments.
-func (c *botContext) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
+func (c *pipeContext) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
 	rc := make(chan taskReturn)
 	go c.callTaskThread(rc, t, command, args...)
 	ret := <-rc
 	return ret.errString, ret.retval
 }
 
-func (ctx *botContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
+func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
 	var retval robot.TaskRetVal
 	task, plugin, job := getTask(t)

@@ -14,17 +14,16 @@ const runJobRegex = `run +job +(` + identifierRegex + `)(?: (.*))?`
 var runJobRe = regexp.MustCompile(`(?i:^\s*` + runJobRegex + `\s*$)`)
 
 // checkJobMatchersAndRun handles triggers, 'run job <foo>'
-func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
-	r := c.makeRobot()
+func (r *Robot) checkJobMatchersAndRun() (messageMatched bool) {
 	// un-needed, but more clear
 	messageMatched = false
 	runTasks := []interface{}{}
-	robots := []*botContext{}
+	robots := []*pipeContext{}
 	taskArgs := [][]string{}
 	var triggerArgs []string
 
 	// First, check triggers
-	for _, t := range c.tasks.t[1:] {
+	for _, t := range r.tasks.t[1:] {
 		task, _, job := getTask(t)
 		if job == nil {
 			continue
@@ -37,22 +36,22 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 		}
 		Log(robot.Trace, "Checking triggers for job '%s'", task.name)
 		triggers := job.Triggers
-		debugT(t, fmt.Sprintf("Checking %d JobTriggers against message: '%s' from user '%s' in channel '%s'", len(triggers), c.msg, c.User, c.Channel), false)
+		debugT(t, fmt.Sprintf("Checking %d JobTriggers against message: '%s' from user '%s' in channel '%s'", len(triggers), r.msg, r.User, r.Channel), false)
 		for _, trigger := range triggers {
-			Log(robot.Trace, "Checking '%s' against user '%s', channel '%s', regex: '%s'", c.msg, trigger.User, trigger.Channel, trigger.Regex)
-			if c.User != trigger.User {
-				debugT(t, fmt.Sprintf("User '%s' doesn't match trigger user '%s'", c.User, trigger.User), false)
+			Log(robot.Trace, "Checking '%s' against user '%s', channel '%s', regex: '%s'", r.msg, trigger.User, trigger.Channel, trigger.Regex)
+			if r.User != trigger.User {
+				debugT(t, fmt.Sprintf("User '%s' doesn't match trigger user '%s'", r.User, trigger.User), false)
 				continue
 			}
-			if c.Channel != trigger.Channel {
-				debugT(t, fmt.Sprintf("Channel '%s' doesn't match trigger", c.Channel), false)
+			if r.Channel != trigger.Channel {
+				debugT(t, fmt.Sprintf("Channel '%s' doesn't match trigger", r.Channel), false)
 				continue
 			}
-			matches := trigger.re.FindAllStringSubmatch(c.msg, -1)
+			matches := trigger.re.FindAllStringSubmatch(r.msg, -1)
 			matched := false
 			if matches != nil {
 				debugT(t, fmt.Sprintf("Matched trigger regex '%s'", trigger.Regex), false)
-				Log(robot.Trace, "Message '%s' matches trigger for job '%s'", c.msg, task.name)
+				Log(robot.Trace, "Message '%s' matches trigger for job '%s'", r.msg, task.name)
 				matched = true
 				triggerArgs = matches[0][1:]
 			} else {
@@ -60,7 +59,7 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 			}
 			if matched {
 				messageMatched = true
-				newbot := c.clone()
+				newbot := ctx.clone()
 				newbot.automaticTask = true
 				robots = append(robots, newbot)
 				runTasks = append(runTasks, t)
@@ -84,18 +83,18 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 		return
 	}
 	// Check for built-in run job
-	if c.isCommand {
+	if r.isCommand {
 		var jobName string
-		cmsg := spaceRe.ReplaceAllString(c.msg, " ")
+		cmsg := spaceRe.ReplaceAllString(msg, " ")
 		matches := runJobRe.FindAllStringSubmatch(cmsg, -1)
 		if matches != nil {
 			jobName = matches[0][1]
 			messageMatched = true
-			c.messageHeard()
+			r.messageHeard()
 		} else {
 			return
 		}
-		t := c.jobAvailable(jobName)
+		t := r.jobAvailable(jobName)
 		if t != nil {
 			c.currentTask = t
 			c.registerActive(nil)
@@ -106,7 +105,7 @@ func (c *botContext) checkJobMatchersAndRun() (messageMatched bool) {
 				c.deregister()
 				return
 			}
-			if !c.jobSecurityCheck(t, "run") {
+			if !r.jobSecurityCheck(t, "run") {
 				c.deregister()
 				return
 			}

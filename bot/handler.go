@@ -147,14 +147,17 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 	repolist := repositories
 	confLock.RUnlock()
 
-	// Create the botContext and a goroutine to process the message and carry state,
+	ctxid := getCtxID()
+
+	// Create the pipeContext and a goroutine to process the message and carry state,
 	// which may eventually run a pipeline.
-	c := &botContext{
+	c := &pipeContext{
 		User:            userName,
 		Channel:         channelName,
 		ProtocolUser:    ProtocolUser,
 		ProtocolChannel: ProtocolChannel,
 		Incoming:        inc,
+		id:              ctxid,
 		tasks:           t,
 		cfg:             cfg,
 		maps:            maps,

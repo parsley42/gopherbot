@@ -58,14 +58,14 @@ func (r Robot) GetUserAttribute(u, a string) *robot.AttrRet {
 }
 
 // messageHeard sends a typing notification
-func (c *botContext) messageHeard() {
-	user := c.ProtocolUser
+func (r *Robot) messageHeard() {
+	user := r.ProtocolUser
 	if len(user) == 0 {
-		user = c.User
+		user = r.User
 	}
-	channel := c.ProtocolChannel
+	channel := r.ProtocolChannel
 	if len(channel) == 0 {
-		channel = c.Channel
+		channel = r.Channel
 	}
 	interfaces.MessageHeard(user, channel)
 }
@@ -76,7 +76,7 @@ func (c *botContext) messageHeard() {
 // Current attributes:
 // name(handle), fullName, email, firstName, lastName, phone, internalID
 // TODO: (see above)
-func (r Robot) GetSenderAttribute(a string) *robot.AttrRet {
+func (r *Robot) GetSenderAttribute(a string) *robot.AttrRet {
 	c := r.getLockedContext()
 	defer c.Unlock()
 	a = strings.ToLower(a)
