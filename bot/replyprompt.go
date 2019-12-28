@@ -181,7 +181,7 @@ func (r Robot) PromptUserChannelForReply(regexID string, user string, channel st
 }
 
 // promptInternal can return 'RetryPrompt'
-func (r *Robot) promptInternal(regexID string, user string, channel string, prompt string) (string, robot.RetVal) {
+func (r Robot) promptInternal(regexID string, user string, channel string, prompt string) (string, robot.RetVal) {
 	matcher := replyMatcher{
 		user:    user,
 		channel: channel,

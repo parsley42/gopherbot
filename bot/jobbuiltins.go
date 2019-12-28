@@ -31,7 +31,7 @@ func init() {
 }
 
 func jobcommands(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(*Robot)
+	r := m.(Robot)
 	tasks := r.tasks
 	if command == "init" {
 		return
@@ -73,7 +73,7 @@ func jobcommands(m robot.Robot, command string, args ...string) (retval robot.Ta
 	return
 }
 
-func emailhistory(r *Robot, hp robot.HistoryProvider, user, address, spec string, run int) (retval robot.TaskRetVal) {
+func emailhistory(r Robot, hp robot.HistoryProvider, user, address, spec string, run int) (retval robot.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Getting history %d for task '%s': %v", run, spec, err)
@@ -108,7 +108,7 @@ func emailhistory(r *Robot, hp robot.HistoryProvider, user, address, spec string
 	return
 }
 
-func pagehistory(r *Robot, hp robot.HistoryProvider, spec string, run int) (retval robot.TaskRetVal) {
+func pagehistory(r Robot, hp robot.HistoryProvider, spec string, run int) (retval robot.TaskRetVal) {
 	f, err := hp.GetHistory(spec, run)
 	if err != nil {
 		Log(robot.Error, "Getting history %d for task '%s': %v", run, spec, err)
@@ -171,7 +171,8 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 	if command == "init" {
 		return
 	}
-	r := m.(*Robot)
+	r := m.(Robot)
+	w := r.worker
 
 	var histType, latest, histSpec, index, user, address string
 
@@ -192,11 +193,11 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 
 	// boilerplate availability and security checking for job commands
 	jobName := strings.Split(histSpec, ":")[0]
-	t := r.jobAvailable(jobName)
+	t := w.jobAvailable(jobName)
 	if t == nil {
 		return
 	}
-	if !r.jobSecurityCheck(t, command) {
+	if !w.jobSecurityCheck(t, command) {
 		return
 	}
 	vr := r.MessageFormat(robot.Variable)
@@ -299,21 +300,22 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 // jobSecurityCheck performs all security checks - RequireAdmin, Authorization
 // and Elevation - and returns true if passed. It will message the user and
 // return false if a check fails.
-func (r *Robot) jobSecurityCheck(t interface{}, command string) bool {
-	if r.automaticTask {
+func (w *worker) jobSecurityCheck(t interface{}, command string) bool {
+	if w.automaticTask {
 		return true
 	}
-	task, _, _ := getTask(r.currentTask)
+	task, _, _ := getTask(w.currentTask)
 	if task.RequireAdmin {
-		if !r.CheckAdmin() {
-			r.Say("Sorry, that command is only available to bot administrators")
+		if !w.CheckAdmin() {
+			w.Say("Sorry, that command is only available to bot administrators")
 			return false
 		}
 	}
+	r := w.makeRobot()
 	if r.checkAuthorization(t, command) != robot.Success {
 		return false
 	}
-	if !r.elevated {
+	if !w.elevated {
 		eret, _ := r.checkElevation(t, command)
 		if eret != robot.Success {
 			return false
@@ -325,7 +327,7 @@ func (r *Robot) jobSecurityCheck(t interface{}, command string) bool {
 // jobVisible checks whether a user should see a job in a channel, unless
 // ignoreChannelRestrictions is set. Note that changes to logic in jobVisible
 // may need to propagate to jobAvailable, below.
-func (r *Robot) jobVisible(t interface{}, ignoreChannelRestrictions, disabledOk bool) bool {
+func (r Robot) jobVisible(t interface{}, ignoreChannelRestrictions, disabledOk bool) bool {
 	task, _, job := getTask(t)
 	if job == nil {
 		return false
@@ -369,52 +371,52 @@ func (r *Robot) jobVisible(t interface{}, ignoreChannelRestrictions, disabledOk 
 // job commands like history, run job, etc. where the user provides a job name.
 // Note that changes to login in jobAvailable may need to propagate to
 // jobVisible, above.
-func (r *Robot) jobAvailable(taskName string) interface{} {
-	t := r.tasks.getTaskByName(taskName)
+func (w *worker) jobAvailable(taskName string) interface{} {
+	t := w.tasks.getTaskByName(taskName)
 	if t == nil {
-		r.Say("Sorry, I don't have a task named '%s' configured", taskName)
+		w.Say("Sorry, I don't have a task named '%s' configured", taskName)
 		return nil
 	}
 	task, _, job := getTask(t)
 	isJob := job != nil
 	if !isJob {
-		r.Say("Sorry, '%s' isn't a job", taskName)
+		w.Say("Sorry, '%s' isn't a job", taskName)
 		return nil
 	}
-	if r.automaticTask {
+	if w.automaticTask {
 		return t
 	}
 	// If there's already a job initialized, this is a pipeline task for that
 	// job, and should be available regardless of channel.
-	if !r.jobInitialized && r.Channel != task.Channel {
+	if !w.jobInitialized && w.Channel != task.Channel {
 		debugTask(task, fmt.Sprintf("not available in channel '%s'", task.Channel), false)
-		r.Say("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel)
+		w.Say("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel)
 		return nil
 	}
 	if task.RequireAdmin {
 		isAdmin := false
-		admins := r.cfg.adminUsers
+		admins := w.cfg.adminUsers
 		for _, adminUser := range admins {
-			if r.User == adminUser {
+			if w.User == adminUser {
 				isAdmin = true
 				break
 			}
 		}
 		if !isAdmin {
-			r.Say("Sorry, '%s' is only available to bot administrators", taskName)
+			w.Say("Sorry, '%s' is only available to bot administrators", taskName)
 			return nil
 		}
 	}
 	if len(task.Users) > 0 {
 		userOk := false
 		for _, allowedUser := range task.Users {
-			match, err := filepath.Match(allowedUser, r.User)
+			match, err := filepath.Match(allowedUser, w.User)
 			if match && err == nil {
 				userOk = true
 			}
 		}
 		if !userOk {
-			r.Say("Sorry, you're not on the list of allowed users for that job")
+			w.Say("Sorry, you're not on the list of allowed users for that job")
 			debugTask(task, "user is not on the list of allowed users", false)
 			return nil
 		}

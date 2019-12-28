@@ -16,38 +16,55 @@ import (
 
 // Robot is the internal struct for a robot.Message, with bits copied
 // from the pipeContext; see that struct for better descriptions.
+// A new Robot is created for every task, plugin or job executed by
+// callTask(...).
 type Robot struct {
 	*robot.Message
-	// external ID used by http.go to look up robot for external tasks
-	eid            string
-	id             int // For looking up the pipeContext
-	automaticTask  bool
-	directMsg      bool
-	jobInitialized bool
-	elevated       bool
-	isCommand      bool
-	listedUser     bool
-	BotUser        bool
-	msg            string
-	currentTask    interface{}    // pointer to the current task
-	nsExtension    string         // extended namespace for the context
-	cfg            *configuration // configuration for this context
-	tasks          *taskList
-	environment    map[string]string // environment for Go tasks
+	worker      *worker
+	pipeContext                // snapshot copy of pipeline context
+	cfg         *configuration // convenience only; r.cfg shorter than r.worker.cfg
+	tasks       *taskList      // same
+	maps        *userChanMaps  // same
 }
 
-// Map of eid to *Robot for external tasks
-var externalRobots = struct {
-	m map[string]*Robot
+// makeRobot returns a Robot for plugins; the id lets Robot methods
+// get a reference back to the original context when needed. The Robot
+// should contain a copy of almost all of the information needed for plugins
+// to run.
+func (w *worker) makeRobot() Robot {
+	r := Robot{
+		// Copy these bits, which can be modified for an individual Robot
+		Message: &robot.Message{
+			User:            w.User,
+			ProtocolUser:    w.ProtocolUser,
+			Channel:         w.Channel,
+			ProtocolChannel: w.ProtocolChannel,
+			Format:          w.Format,
+			Protocol:        w.Protocol,
+			Incoming:        w.Incoming,
+		},
+		worker: w,
+		pipeContext: pipeContext{
+			jobInitialized: w.jobInitialized,
+			elevated:       w.elevated,
+			currentTask:    w.currentTask,
+			nsExtension:    w.nsExtension,
+			exclusive:      w.exclusive,
+		},
+		maps:  w.maps,
+		cfg:   w.cfg,
+		tasks: w.tasks,
+	}
+	return r
+}
+
+// Map of eid to *worker for external tasks
+var externalLookup = struct {
+	m map[string]*worker
 	sync.RWMutex
 }{
-	make(map[string]*Robot),
+	make(map[string]*worker),
 	sync.RWMutex{},
-}
-
-func (r Robot) getContext() *pipeContext {
-	c := getpipeContextInt(r.id)
-	return c
 }
 
 // CheckAdmin returns true if the user is a configured administrator of the
@@ -55,11 +72,17 @@ func (r Robot) getContext() *pipeContext {
 // plugin has multiple commands, some which require admin. Otherwise the plugin
 // should just configure RequireAdmin: true
 func (r Robot) CheckAdmin() bool {
-	if r.automaticTask {
+	// Note that this does "the right thing", using the user from the worker;
+	// the user in the Robot is writeable.
+	return r.worker.CheckAdmin()
+}
+
+func (w *worker) CheckAdmin() bool {
+	if w.automaticTask {
 		return true
 	}
-	for _, adminUser := range r.cfg.adminUsers {
-		if r.User == adminUser {
+	for _, adminUser := range w.cfg.adminUsers {
+		if w.User == adminUser {
 			emit(AdminCheckPassed)
 			return true
 		}
@@ -74,7 +97,7 @@ func (r Robot) SetParameter(name, value string) bool {
 	if !identifierRe.MatchString(name) {
 		return false
 	}
-	c := r.getContext()
+	c := r.worker.pipeContext
 	c.Lock()
 	defer c.Unlock()
 	c.environment[name] = value
@@ -93,7 +116,7 @@ func (r Robot) SetParameter(name, value string) bool {
 // Fails if the new working directory doesn't exist
 // See also: tasks/setworkdir.sh for updating working directory in a pipeline
 func (r Robot) SetWorkingDirectory(path string) bool {
-	c := r.getContext()
+	c := r.worker.pipeContext
 	c.Lock()
 	defer c.Unlock()
 	if path == "." {
@@ -147,7 +170,7 @@ func (r Robot) GetParameter(key string) string {
 // the elevator should always prompt for 2fa; otherwise a configured timeout
 // should apply.
 func (r Robot) Elevate(immediate bool) bool {
-	c := r.getLockedContext()
+	c := r.worker.pipeContext
 	defer c.Unlock()
 	task, _, _ := getTask(c.currentTask)
 	retval := c.elevate(task, immediate)

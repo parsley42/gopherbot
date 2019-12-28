@@ -48,6 +48,66 @@ func (h handler) GetConfigPath() string {
 	return installPath
 }
 
+// A new worker is created for every incoming message, and may or may not end
+// up creating a new pipeline. Workers are also created by scheduled jobs
+// and Spawned jobs, in which case a pipeline is always created.
+type worker struct {
+	User            string                      // The user who sent the message; this can be modified for replying to an arbitrary user
+	Channel         string                      // The channel where the message was received, or "" for a direct message. This can be modified to send a message to an arbitrary channel.
+	ProtocolUser    string                      // The username or <userid> to be sent in connector methods
+	ProtocolChannel string                      // the channel name or <channelid> where the message originated
+	Protocol        robot.Protocol              // slack, terminal, test, others; used for interpreting rawmsg or sending messages with Format = 'Raw'
+	Incoming        *robot.ConnectorMessage     // raw struct of message sent by connector; interpret based on protocol. For Slack this is a *slack.MessageEvent
+	Format          robot.MessageFormat         // robot's default message format
+	id              int                         // integer worker ID used when being registered as an active pipeline
+	tasks           *taskList                   // Pointers to current task configuration at start of pipeline
+	maps            *userChanMaps               // Pointer to current user / channel maps struct
+	repositories    map[string]robot.Repository // Set of configured repositories
+	cfg             *configuration              // Active configuration when this context was created
+	BotUser         bool                        // set for bots/programs that should never match ambient messages
+	listedUser      bool                        // set for users listed in the UserRoster; ambient messages don't match unlisted users by default
+	isCommand       bool                        // Was the message directed at the robot, dm or by mention
+	directMsg       bool                        // if the message was sent by DM
+	msg             string                      // the message text sent
+	automaticTask   bool                        // set for scheduled & triggers jobs, where user security restrictions don't apply
+	*pipeContext                                // pointer to the pipeline context, created in
+}
+
+// clone a worker for a new execution context
+func (w *worker) clone() *worker {
+	clone := &worker{
+		User:            w.User,
+		ProtocolUser:    w.ProtocolUser,
+		Channel:         w.Channel,
+		ProtocolChannel: w.ProtocolChannel,
+		Incoming:        w.Incoming,
+		directMsg:       w.directMsg,
+		BotUser:         w.BotUser,
+		listedUser:      w.listedUser,
+		id:              getCtxID(),
+		cfg:             w.cfg,
+		tasks:           w.tasks,
+		maps:            w.maps,
+		repositories:    w.repositories,
+		automaticTask:   w.automaticTask,
+		Protocol:        w.Protocol,
+		Format:          w.Format,
+		msg:             w.msg,
+	}
+	if w.pipeContext != nil {
+		w.Lock()
+		clone.pipeContext = &pipeContext{
+			pipeName:    w.pipeName,
+			pipeDesc:    w.pipeDesc,
+			ptype:       w.ptype,
+			elevated:    w.elevated,
+			environment: make(map[string]string),
+		}
+		w.Unlock()
+	}
+	return clone
+}
+
 // ChannelMessage accepts an incoming channel message from the connector.
 //func (h handler) IncomingMessage(channelName, userName, messageFull string, raw interface{}) {
 func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
@@ -147,34 +207,32 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 	repolist := repositories
 	confLock.RUnlock()
 
-	ctxid := getCtxID()
-
-	// Create the pipeContext and a goroutine to process the message and carry state,
+	// Create the worker and a goroutine to process the message and carry state,
 	// which may eventually run a pipeline.
-	c := &pipeContext{
+	w := &worker{
 		User:            userName,
 		Channel:         channelName,
 		ProtocolUser:    ProtocolUser,
 		ProtocolChannel: ProtocolChannel,
 		Incoming:        inc,
-		id:              ctxid,
+		Format:          cfg.defaultMessageFormat,
 		tasks:           t,
 		cfg:             cfg,
 		maps:            maps,
 		BotUser:         BotUser,
 		listedUser:      listedUser,
+		id:              getCtxID(),
 		repositories:    repolist,
 		isCommand:       isCommand,
 		directMsg:       inc.DirectMessage,
 		msg:             message,
-		environment:     make(map[string]string),
 	}
-	if c.directMsg {
+	if w.directMsg {
 		Log(robot.Debug, "Received private message from user '%s'", userName)
 	} else {
 		Log(robot.Debug, "Message '%s' from user '%s' in channel '%s'; isCommand: %t", message, userName, logChannel, isCommand)
 	}
-	go c.handleMessage()
+	go w.handleMessage()
 }
 
 /* NOTE NOTE NOTE: Connector, Brain and History do not change after start-up, and that

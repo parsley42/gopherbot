@@ -22,7 +22,7 @@ var envPassThrough = []string{
 // Called from dispatch: checkPluginMatchersAndRun,
 // jobcommands: checkJobMatchersAndRun or ScheduledTask,
 // runPipeline.
-func (r *Robot) startPipeline(parent *pipeContext, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
+func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
 	task, plugin, job := getTask(t)
 	state.RLock()
 	if state.shuttingDown {
@@ -39,37 +39,38 @@ func (r *Robot) startPipeline(parent *pipeContext, t interface{}, ptype pipeline
 	ppipeDesc := parent.pipeDesc
 	parent.Unlock()
 	// NOTE: we don't need to worry about locking until the pipeline actually starts
-	ctx := r.getContext()
-	ctx.pipeName = task.name
-	ctx.pipeDesc = task.Description
+	c := &pipeContext{}
+	w.pipeContext = c
+	c.pipeName = task.name
+	c.pipeDesc = task.Description
 	if isPlugin {
-		ctx.privileged = plugin.Privileged
+		c.privileged = plugin.Privileged
 	} else {
-		ctx.privileged = job.Privileged
+		c.privileged = job.Privileged
 	}
-	if ctx.privileged {
+	if c.privileged {
 		if len(homePath) > 0 {
-			ctx.environment["GOPHER_HOME"] = homePath
+			c.environment["GOPHER_HOME"] = homePath
 		}
 	}
 	// Initial baseDirectory and workingDirectory are the same; SetWorkingDirectory
 	// modifies workingDirectory.
 	if task.Homed {
-		ctx.baseDirectory = "."
-		ctx.workingDirectory = "."
-		ctx.environment["GOPHER_WORKSPACE"] = r.cfg.workSpace
-		ctx.environment["GOPHER_CONFIGDIR"] = configPath
+		c.baseDirectory = "."
+		c.workingDirectory = "."
+		c.environment["GOPHER_WORKSPACE"] = w.cfg.workSpace
+		c.environment["GOPHER_CONFIGDIR"] = configPath
 	} else {
-		ctx.baseDirectory = ctx.cfg.workSpace
-		ctx.workingDirectory = ctx.cfg.workSpace
+		c.baseDirectory = w.cfg.workSpace
+		c.workingDirectory = w.cfg.workSpace
 	}
 	// Spawned pipelines keep the original ptype
-	if ctx.ptype == unset {
-		ctx.ptype = ptype
+	if c.ptype == unset {
+		c.ptype = ptype
 	}
-	ctx.timeZone = r.cfg.timeZone
+	c.timeZone = w.cfg.timeZone
 	// redundant but explicit
-	ctx.stage = primaryTasks
+	c.stage = primaryTasks
 	// TODO: Replace the waitgroup, pipelinesRunning, defer func(), etc.
 	state.Add(1)
 	state.Lock()
@@ -84,10 +85,6 @@ func (r *Robot) startPipeline(parent *pipeContext, t interface{}, ptype pipeline
 		}
 		state.Unlock()
 	}()
-
-	// Once Active, we need to use the Mutex for access to some fields; see
-	// pipeContext/type pipeContext
-	c.registerActive(parent)
 
 	// A job is always the first task in a pipeline; a new sub-pipeline is created
 	// if a job is added in another pipeline.
@@ -181,8 +178,12 @@ func (r *Robot) startPipeline(parent *pipeContext, t interface{}, ptype pipeline
 	ts := TaskSpec{task.name, command, args, t}
 	c.nextTasks = []TaskSpec{ts}
 
+	// Once Active, we need to use the Mutex for access to some fields; see
+	// pipeContext/type pipeContext
+	c.registerActive(parent)
+
 	var errString string
-	ret, errString = c.runPipeline(ptype, true)
+	ret, errString = w.runPipeline(ptype, true)
 	// Close the log so final / fail tasks could potentially send log emails / links
 	if c.logger != nil {
 		c.logger.Section("done", "primary pipeline has completed")
@@ -254,17 +255,17 @@ const (
 	failTasks
 )
 
-func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
+func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
 	var p []TaskSpec
 	eventEmitted := false
-	switch c.stage {
+	switch w.stage {
 	case primaryTasks:
-		p = c.nextTasks
-		c.nextTasks = []TaskSpec{}
+		p = w.nextTasks
+		w.nextTasks = []TaskSpec{}
 	case finalTasks:
-		p = c.finalTasks
+		p = w.finalTasks
 	case failTasks:
-		p = c.failTasks
+		p = w.failTasks
 	}
 
 	l := len(p)
@@ -278,8 +279,9 @@ func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robo
 		isPlugin := plugin != nil
 
 		// Security checks for jobs & plugins
-		if (isJob || isPlugin) && !c.automaticTask && c.stage != finalTasks {
-			r := c.makeRobot()
+		if (isJob || isPlugin) && !w.automaticTask && w.stage != finalTasks {
+			r := w.makeRobot()
+			r.currentTask = t
 			task, plugin, _ := getTask(t)
 			adminRequired := task.RequireAdmin
 			if !adminRequired && (plugin != nil && len(plugin.AdminCommands) > 0) {
@@ -297,18 +299,18 @@ func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robo
 					break
 				}
 			}
-			if c.checkAuthorization(t, command, args...) != robot.Success {
+			if r.checkAuthorization(t, command, args...) != robot.Success {
 				ret = robot.Fail
 				break
 			}
-			if !c.elevated {
-				eret, required := c.checkElevation(t, command)
+			if !w.elevated {
+				eret, required := r.checkElevation(t, command)
 				if eret != robot.Success {
 					ret = robot.Fail
 					break
 				}
 				if required {
-					c.elevated = true
+					w.elevated = true
 				}
 			}
 		}
@@ -333,34 +335,34 @@ func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robo
 			}
 		}
 		if isJob && i != 0 {
-			child := c.clone()
-			ret = child.startPipeline(c, t, ptype, command, args...)
+			child := w.clone()
+			ret = child.startPipeline(w, t, ptype, command, args...)
 		} else {
 			debugT(t, fmt.Sprintf("Running task with command '%s' and arguments: %v", command, args), false)
-			errString, ret = c.callTask(t, command, args...)
+			errString, ret = w.callTask(t, command, args...)
 			debugT(t, fmt.Sprintf("Task finished with return value: %s", ret), false)
-			if c.stage != finalTasks && ret != robot.Normal {
-				c.failedTask = task.name
+			if w.stage != finalTasks && ret != robot.Normal {
+				w.failedTask = task.name
 				if len(args) > 0 {
-					c.failedTask += " " + strings.Join(args, " ")
+					w.failedTask += " " + strings.Join(args, " ")
 				}
-				c.failedTaskDescription = task.Description
+				w.failedTaskDescription = task.Description
 			}
 		}
-		if c.stage != finalTasks && ret != robot.Normal {
+		if w.stage != finalTasks && ret != robot.Normal {
 			// task / job in pipeline failed
 			break
 		}
-		if !c.exclusive {
-			if c.abortPipeline {
+		if !w.exclusive {
+			if w.abortPipeline {
 				ret = robot.PipelineAborted
 				errString = "Pipeline aborted, exclusive lock failed"
 				break
 			}
-			if c.queueTask {
-				c.queueTask = false
-				c.exclusive = true
-				tag := c.exclusiveTag
+			if w.queueTask {
+				w.queueTask = false
+				w.exclusive = true
+				tag := w.exclusiveTag
 				runQueues.Lock()
 				queue, exists := runQueues.m[tag]
 				if exists {
@@ -368,40 +370,40 @@ func (c *pipeContext) runPipeline(ptype pipelineType, initialRun bool) (ret robo
 					queue = append(queue, wakeUp)
 					runQueues.m[tag] = queue
 					runQueues.Unlock()
-					Log(robot.Debug, "Exclusive task in progress, queueing bot #%d and waiting; queue length: %d", c.id, len(queue))
+					Log(robot.Debug, "Exclusive task in progress, queueing bot #%d and waiting; queue length: %d", w.id, len(queue))
 					if (isJob && !job.Quiet) || ptype == jobCmd {
-						c.makeRobot().Say("Queueing task '%s' in pipeline '%s'", task.name, c.pipeName)
+						w.makeRobot().Say("Queueing task '%s' in pipeline '%s'", task.name, w.pipeName)
 					}
 					// Now we block until kissed by a Handsome Prince
 					<-wakeUp
-					Log(robot.Debug, "Bot #%d in queue waking up and re-starting task '%s'", c.id, task.name)
+					Log(robot.Debug, "Bot #%d in queue waking up and re-starting task '%s'", w.id, task.name)
 					if (job != nil && !job.Quiet) || ptype == jobCmd {
-						c.makeRobot().Say("Re-starting queued task '%s' in pipeline '%s'", task.name, c.pipeName)
+						w.makeRobot().Say("Re-starting queued task '%s' in pipeline '%s'", task.name, w.pipeName)
 					}
 					// Decrement the index so this task runs again
 					i--
 					// Clear tasks added in the last run (if any)
-					c.nextTasks = []TaskSpec{}
+					w.nextTasks = []TaskSpec{}
 				} else {
-					Log(robot.Debug, "Exclusive lock acquired in pipeline '%s', bot #%d", c.pipeName, c.id)
+					Log(robot.Debug, "Exclusive lock acquired in pipeline '%s', bot #%d", w.pipeName, w.id)
 					runQueues.m[tag] = []chan struct{}{}
 					runQueues.Unlock()
 				}
 			}
 		}
-		if c.stage == primaryTasks {
-			t := len(c.nextTasks)
+		if w.stage == primaryTasks {
+			t := len(w.nextTasks)
 			if t > 0 {
 				if i == l-1 {
-					p = append(p, c.nextTasks...)
+					p = append(p, w.nextTasks...)
 					l += t
 				} else {
-					ret, errString = c.runPipeline(ptype, false)
+					ret, errString = w.runPipeline(ptype, false)
 				}
-				c.nextTasks = []TaskSpec{}
+				w.nextTasks = []TaskSpec{}
 				// the case where c.queueTask is true is handled right after
 				// callTask
-				if c.abortPipeline {
+				if w.abortPipeline {
 					ret = robot.PipelineAborted
 					errString = "Pipeline aborted, exclusive lock failed"
 					break

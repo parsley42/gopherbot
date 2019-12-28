@@ -31,7 +31,7 @@ func init() {
 /* builtin plugins, like help */
 
 func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(*Robot)
+	r := m.(Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -96,7 +96,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			}
 			// If a keyword was supplied, give help for all matching commands with channels;
 			// without a keyword, show help for all commands available in the channel.
-			if !r.pluginAvailable(task, hasKeyword, true) {
+			if !r.worker.pluginAvailable(task, hasKeyword, true) {
 				continue
 			}
 			Log(robot.Trace, "Checking help for plugin %s (term: %s)", task.name, term)
@@ -157,7 +157,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			// Unless builtins are disabled or reconfigured, 'ping' is available in all channels
 			r.Say("Sorry, I didn't find any commands matching your keyword")
 		case len(helpLines) > tooLong:
-			if !r.directMsg {
+			if !r.worker.directMsg {
 				r.Reply("(the help output was pretty long, so I sent you a private message)")
 				if !hasKeyword {
 					helpOutput = "Command(s) available in channel: " + r.Channel + "\n" + strings.Join(helpLines, lineSeparator)
@@ -179,7 +179,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 }
 
 func dmadmin(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(*Robot)
+	r := m.(Robot)
 	if command == "init" {
 		return // ignore init
 	}
@@ -291,7 +291,7 @@ var rightback = []string{
 }
 
 func logging(m robot.Robot, command string, args ...string) (retval robot.TaskRetVal) {
-	r := m.(*Robot)
+	r := m.(Robot)
 	switch command {
 	case "init":
 		return
@@ -324,7 +324,7 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 	if command == "init" {
 		return // ignore init
 	}
-	r := m.(*Robot)
+	r := m.(Robot)
 	switch command {
 	case "reload":
 		err := loadConfig(false)

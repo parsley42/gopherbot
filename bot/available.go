@@ -11,15 +11,15 @@ import (
 // both handleMessage and the help builtin. verboseOnly is set when availability
 // is being checked for ambient messages or auth/elevation plugins, to indicate
 // debugging verboseness.
-func (r Robot) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (available bool) {
-	nvmsg := "task is NOT visible to user " + r.User + " in channel "
-	vmsg := "task is visible to user " + r.User + " in channel "
-	if r.directMsg {
+func (w *worker) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (available bool) {
+	nvmsg := "task is NOT visible to user " + w.User + " in channel "
+	vmsg := "task is visible to user " + w.User + " in channel "
+	if w.directMsg {
 		nvmsg += "(direct message)"
 		vmsg += "(direct message)"
 	} else {
-		nvmsg += r.Channel
-		vmsg += r.Channel
+		nvmsg += w.Channel
+		vmsg += w.Channel
 	}
 	defer func(vmsg string) {
 		if available {
@@ -30,19 +30,19 @@ func (r Robot) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (availa
 		debugTask(task, nvmsg+"; task is disabled, possibly due to configuration error", verboseOnly)
 		return false
 	}
-	if !r.directMsg && task.DirectOnly && !helpSystem {
+	if !w.directMsg && task.DirectOnly && !helpSystem {
 		debugTask(task, nvmsg+"; only available by direct message: DirectOnly is TRUE", verboseOnly)
 		return false
 	}
-	if r.directMsg && !task.AllowDirect && !helpSystem {
+	if w.directMsg && !task.AllowDirect && !helpSystem {
 		debugTask(task, nvmsg+"; not available by direct message: AllowDirect is FALSE", verboseOnly)
 		return false
 	}
 	if task.RequireAdmin {
 		isAdmin := false
-		admins := r.cfg.adminUsers
+		admins := w.cfg.adminUsers
 		for _, adminUser := range admins {
-			if r.User == adminUser {
+			if w.User == adminUser {
 				isAdmin = true
 				break
 			}
@@ -55,7 +55,7 @@ func (r Robot) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (availa
 	if len(task.Users) > 0 {
 		userOk := false
 		for _, allowedUser := range task.Users {
-			match, err := filepath.Match(allowedUser, r.User)
+			match, err := filepath.Match(allowedUser, w.User)
 			if match && err == nil {
 				userOk = true
 			}
@@ -65,12 +65,12 @@ func (r Robot) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (availa
 			return false
 		}
 	}
-	if r.directMsg && (task.AllowDirect || task.DirectOnly) {
+	if w.directMsg && (task.AllowDirect || task.DirectOnly) {
 		return true
 	}
 	if len(task.Channels) > 0 {
 		for _, pchannel := range task.Channels {
-			if pchannel == r.Channel {
+			if pchannel == w.Channel {
 				return true
 			}
 		}
@@ -82,6 +82,6 @@ func (r Robot) pluginAvailable(task *Task, helpSystem, verboseOnly bool) (availa
 	if helpSystem {
 		return true
 	}
-	debugTask(task, fmt.Sprintf(nvmsg+"; channel '%s' is not on the list of allowed channels: %s", r.Channel, strings.Join(task.Channels, ", ")), verboseOnly)
+	debugTask(task, fmt.Sprintf(nvmsg+"; channel '%s' is not on the list of allowed channels: %s", w.Channel, strings.Join(task.Channels, ", ")), verboseOnly)
 	return false
 }

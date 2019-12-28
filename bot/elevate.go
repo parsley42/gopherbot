@@ -8,7 +8,7 @@ const configElevError = "Sorry, elevation failed due to a configuration error"
 // Elevator plugins provide an elevate method for checking if the user
 // can run a privileged command.
 
-func (r *Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
+func (r Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
 	defaultElevator := r.cfg.defaultElevator
 	if task.Elevator == "" && defaultElevator == "" {
 		Log(robot.Audit, "Task '%s' requires elevation, but no elevator configured", task.name)
@@ -26,13 +26,12 @@ func (r *Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
 		if !immediate {
 			immedString = "false"
 		}
-		c := r.getContext()
-		_, elevRet := c.callTask(ePlug, "elevate", immedString)
+		_, elevRet := r.worker.callTask(ePlug, "elevate", immedString)
 		elevated := elevRet == robot.Success
-		c.Lock()
-		c.elevated = elevated
-		c.currentTask = r.currentTask
-		c.Unlock()
+		r.worker.Lock()
+		r.worker.elevated = elevated
+		r.worker.currentTask = r.currentTask
+		r.worker.Unlock()
 		if elevated {
 			Log(robot.Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			emit(ElevRanSuccess)
@@ -68,7 +67,7 @@ func (r *Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
 }
 
 // Check for a configured Elevator and check elevation
-func (r *Robot) checkElevation(t interface{}, command string) (retval robot.TaskRetVal, required bool) {
+func (r Robot) checkElevation(t interface{}, command string) (retval robot.TaskRetVal, required bool) {
 	task, plugin, _ := getTask(t)
 	isPlugin := plugin != nil
 	immediate := false

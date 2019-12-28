@@ -18,10 +18,10 @@ The `bot` package contains all the logic for a running robot.
 Any time **Gopherbot** runs a task, plugin or job, it is part of a pipeline (which may consist only of a single job or plugin executing). The data structures for representing a pipeline are the `worker` and the `pipeContext`.
 
 ### Workers
-The `worker` struct represents a thread of execution. The worker contains all the invariant information about how it was created, whether from an incoming message, a scheduled job, or a job spawn from another worker. Workers are created for every incoming message, regardless of whether a pipeline is ever started.
+The `worker` struct represents a thread of execution. The worker contains all the invariant information about how it was created, whether from an incoming message, a scheduled job, or a job spawn from another worker. Workers are created for every incoming message, regardless of whether a pipeline is ever started. The worker includes a `context` pointer that is populated when `startPipeline(...)` is called.
 
 ### Pipe Context
 Whenever a pipeline is started, the `context` member of the `worker` struct is populated with a `pipeContext` (by `bot.registerActive`), to keep state for the pipeline. At this time four bytes of entropy are consumed for the `GOPHER_CALLER_ID` environment variable, to be passed to external scripts that run in the pipeline. This allows `bot/http.go` to look up the correct robot on each external script method call. The `pipeContext` contains a `sync.Mutex` member for locking, as it can be changed in different threads of execution. Note, however, that a well written task, plugin or job is not multi-threaded, and under normal circumstances all access to the `pipeContext` *should* be serialized.
 
 ### Robots
-The `bot.Robot` struct is created any time a task, plugin or job is run, and contains a pointer to the `robot.Message`, a snapshot of the current state of the pipeline, and an `id` for looking up the `worker` from which the `Robot` was created.
+The `bot.Robot` struct is created any time a task, plugin or job is run, and contains a pointer to the `robot.Message`, a pointer to the `bot.worker`, and a snapshot of the current `pipeContext` when `w.makeRobot` was called.

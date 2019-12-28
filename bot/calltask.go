@@ -70,28 +70,28 @@ type taskReturn struct {
 }
 
 // callTask does the work of running a job, task or plugin with a command and arguments.
-func (c *pipeContext) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
+func (w *worker) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
 	rc := make(chan taskReturn)
-	go c.callTaskThread(rc, t, command, args...)
+	go w.callTaskThread(rc, t, command, args...)
 	ret := <-rc
 	return ret.errString, ret.retval
 }
 
-func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
+func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command string, args ...string) {
 	var errString string
 	var retval robot.TaskRetVal
 	task, plugin, job := getTask(t)
 	isPlugin := plugin != nil
 	isJob := job != nil
-	ctx.Lock()
-	ctx.currentTask = t
-	logger := ctx.logger
-	workdir := ctx.workingDirectory
-	privileged := ctx.privileged
-	ctx.taskName = task.name
-	ctx.taskDesc = task.Description
-	ctx.Unlock()
-	r := ctx.makeRobot()
+	w.Lock()
+	w.currentTask = t
+	logger := w.logger
+	workdir := w.workingDirectory
+	privileged := w.privileged
+	w.taskName = task.name
+	w.taskDesc = task.Description
+	w.Unlock()
+	r := w.makeRobot()
 	// This should only happen in the rare case that a configured authorizer or elevator is disabled
 	if task.Disabled {
 		msg := fmt.Sprintf("callTask failed on disabled task %s; reason: %s", task.name, task.reason)
@@ -120,20 +120,20 @@ func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, c
 	}
 
 	if !(task.name == "builtin-admin" && command == "abort") {
-		if r.directMsg {
-			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: (omitted)", task.name, command))
+		if w.directMsg {
+			defer checkPanic(w, fmt.Sprintf("Plugin: %s, command: %s, arguments: (omitted)", task.name, command))
 		} else {
-			defer checkPanic(r, fmt.Sprintf("Plugin: %s, command: %s, arguments: %v", task.name, command, args))
+			defer checkPanic(w, fmt.Sprintf("Plugin: %s, command: %s, arguments: %v", task.name, command, args))
 		}
 	}
-	if r.directMsg {
+	if w.directMsg {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '(omitted for DM)'", command, task.name)
 	} else {
 		Log(robot.Debug, "Dispatching command '%s' to task '%s' with arguments '%#v'", command, task.name, args)
 	}
 
 	// Set up the per-task environment, getEnvironment takes lock & releases
-	envhash := ctx.getEnvironment(task)
+	envhash := w.getEnvironment(task)
 	r.environment = envhash
 
 	if isPlugin && plugin.taskType == taskGo {
@@ -156,13 +156,13 @@ func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, c
 		return
 	}
 	// External task; add lookup for http.go
-	externalRobots.Lock()
-	externalRobots.m[r.eid] = r
-	externalRobots.Unlock()
+	externalLookup.Lock()
+	externalLookup.m[r.eid] = w
+	externalLookup.Unlock()
 	defer func() {
-		externalRobots.Lock()
-		delete(externalRobots.m, r.eid)
-		externalRobots.Unlock()
+		externalLookup.Lock()
+		delete(externalLookup.m, r.eid)
+		externalLookup.Unlock()
 	}()
 
 	var taskPath string // full path to the executable
@@ -185,9 +185,9 @@ func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, c
 	externalArgs = append(externalArgs, args...)
 	Log(robot.Debug, "Calling '%s' with args: %q", taskPath, externalArgs)
 	cmd := exec.Command(taskPath, externalArgs...)
-	ctx.Lock()
-	ctx.osCmd = cmd
-	ctx.Unlock()
+	w.Lock()
+	w.osCmd = cmd
+	w.Unlock()
 
 	// Homed tasks ALWAYS run in cwd, Homed pipelines may have modified the
 	// working directory with SetWorkingDirectory.
@@ -319,11 +319,11 @@ func (ctx *pipeContext) callTaskThread(rchan chan<- taskReturn, t interface{}, c
 				halfClosed = true
 			}
 		}
-		ctx.Lock()
-		if ctx.logger != logger {
+		w.Lock()
+		if w.logger != logger {
 			logger.Close()
 		}
-		ctx.Unlock()
+		w.Unlock()
 	}
 	if err = cmd.Wait(); err != nil {
 		retval = robot.Fail
