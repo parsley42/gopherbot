@@ -159,17 +159,15 @@ type pipeContext struct {
 	_parent, _child *worker
 	elevated        bool              // set when required elevation succeeds
 	environment     map[string]string // environment vars set for each job/plugin in the pipeline
-	//taskenvironment map[string]string // per-task environment for Go plugins
-	stage          pipeStage  // which pipeline is being run; primaryP, finalP, failP
-	jobInitialized bool       // whether a job has started
-	jobName        string     // name of the running job
-	jobChannel     string     // channel where job updates are posted
-	nsExtension    string     // extended namespace
-	runIndex       int        // run number of a job
-	verbose        bool       // flag if initializing job was verbose
-	nextTasks      []TaskSpec // tasks in the pipeline
-	finalTasks     []TaskSpec // clean-up tasks that always run when the pipeline ends
-	failTasks      []TaskSpec // clean-up tasks that run when a pipeline fails
+	stage           pipeStage         // which pipeline is being run; primaryP, finalP, failP
+	jobInitialized  bool              // whether a job has started
+	jobName         string            // name of the running job
+	nsExtension     string            // extended namespace
+	runIndex        int               // run number of a job
+	verbose         bool              // flag if initializing job was verbose
+	nextTasks       []TaskSpec        // tasks in the pipeline
+	finalTasks      []TaskSpec        // clean-up tasks that always run when the pipeline ends
+	failTasks       []TaskSpec        // clean-up tasks that run when a pipeline fails
 
 	failedTask, failedTaskDescription string // set when a task fails
 

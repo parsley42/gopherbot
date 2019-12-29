@@ -20,12 +20,10 @@ func (r Robot) GetMessage() *robot.Message {
 // admin wants to supplment whats available from the protocol.
 func (r Robot) GetUserAttribute(u, a string) *robot.AttrRet {
 	a = strings.ToLower(a)
-	c := r.getLockedContext()
-	defer c.Unlock()
 	var user string
 	var ui *UserInfo
 	var ok bool
-	if ui, ok = c.maps.user[u]; ok {
+	if ui, ok = r.maps.user[u]; ok {
 		user = "<" + ui.UserID + ">"
 	} else {
 		user = u
@@ -63,11 +61,9 @@ func (r Robot) GetUserAttribute(u, a string) *robot.AttrRet {
 // name(handle), fullName, email, firstName, lastName, phone, internalID
 // TODO: (see above)
 func (r Robot) GetSenderAttribute(a string) *robot.AttrRet {
-	c := r.getLockedContext()
-	defer c.Unlock()
 	a = strings.ToLower(a)
 	var ui *UserInfo
-	ui, _ = c.maps.user[r.User]
+	ui, _ = r.maps.user[r.User]
 	switch a {
 	case "name", "username", "handle", "user":
 		return &robot.AttrRet{r.User, robot.Ok}

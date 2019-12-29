@@ -20,11 +20,12 @@ import (
 // callTask(...).
 type Robot struct {
 	*robot.Message
-	worker      *worker
-	pipeContext                // snapshot copy of pipeline context
-	cfg         *configuration // convenience only; r.cfg shorter than r.worker.cfg
-	tasks       *taskList      // same
-	maps        *userChanMaps  // same
+	worker       *worker
+	pipeContext                              // snapshot copy of pipeline context
+	cfg          *configuration              // convenience only; r.cfg shorter than r.worker.cfg
+	tasks        *taskList                   // same
+	maps         *userChanMaps               // same
+	repositories map[string]robot.Repository // same
 }
 
 // makeRobot returns a Robot for plugins; the id lets Robot methods
@@ -51,19 +52,20 @@ func (w *worker) makeRobot() Robot {
 			nsExtension:    w.nsExtension,
 			exclusive:      w.exclusive,
 		},
-		maps:  w.maps,
-		cfg:   w.cfg,
-		tasks: w.tasks,
+		cfg:          w.cfg,
+		tasks:        w.tasks,
+		maps:         w.maps,
+		repositories: w.repositories,
 	}
 	return r
 }
 
 // Map of eid to *worker for external tasks
 var externalLookup = struct {
-	m map[string]*worker
+	m map[string]Robot
 	sync.RWMutex
 }{
-	make(map[string]*worker),
+	make(map[string]Robot),
 	sync.RWMutex{},
 }
 
@@ -173,7 +175,7 @@ func (r Robot) Elevate(immediate bool) bool {
 	c := r.worker.pipeContext
 	defer c.Unlock()
 	task, _, _ := getTask(c.currentTask)
-	retval := c.elevate(task, immediate)
+	retval := r.elevate(task, immediate)
 	if retval == robot.Success {
 		return true
 	}
@@ -229,22 +231,20 @@ func (r Robot) RandomInt(n int) int {
 // Current attributes:
 // name, alias, fullName, contact
 func (r Robot) GetBotAttribute(a string) *robot.AttrRet {
-	c := r.getLockedContext()
-	defer c.Unlock()
 	a = strings.ToLower(a)
 	ret := robot.Ok
 	var attr string
 	switch a {
 	case "name":
-		attr = c.cfg.botinfo.UserName
+		attr = r.cfg.botinfo.UserName
 	case "fullname", "realname":
-		attr = c.cfg.botinfo.FullName
+		attr = r.cfg.botinfo.FullName
 	case "alias":
-		attr = string(c.cfg.alias)
+		attr = string(r.cfg.alias)
 	case "mail", "email":
-		attr = c.cfg.botinfo.Email
+		attr = r.cfg.botinfo.Email
 	case "contact", "admin", "admincontact":
-		attr = c.cfg.adminContact
+		attr = r.cfg.adminContact
 	case "protocol":
 		attr = r.Protocol.String()
 	default:
@@ -289,9 +289,7 @@ and call GetTaskConfig with a double-pointer:
 ... And voila! *pConf is populated with the contents from the configured Config: stanza
 */
 func (r Robot) GetTaskConfig(dptr interface{}) robot.RetVal {
-	c := r.getLockedContext()
-	defer c.Unlock()
-	task, _, _ := getTask(c.currentTask)
+	task, _, _ := getTask(r.currentTask)
 	if task.config == nil {
 		Log(robot.Debug, "Task \"%s\" called GetTaskConfig, but no config was found.", task.name)
 		return robot.NoConfigFound
@@ -320,11 +318,9 @@ func (r Robot) Log(l robot.LogLevel, msg string, v ...interface{}) (logged bool)
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	c := r.getLockedContext()
-	defer c.Unlock()
-	if Log(l, msg) && c.logger != nil {
+	if Log(l, msg) && r.logger != nil {
 		line := "LOG " + logLevelToStr(l) + " " + msg
-		c.logger.Log(strings.TrimSpace(line))
+		r.logger.Log(strings.TrimSpace(line))
 	}
 	return
 }

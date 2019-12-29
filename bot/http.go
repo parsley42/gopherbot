@@ -208,15 +208,13 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Look up the Robot
 	externalLookup.RLock()
-	w, ok := externalLookup.m[f.CallerID]
+	r, ok := externalLookup.m[f.CallerID]
 	externalLookup.RUnlock()
 	if !ok {
 		rw.WriteHeader(http.StatusBadRequest)
 		Log(robot.Error, "JSON function '%s' called with invalid CallerID '%s'; args: %s", f.FuncName, f.CallerID, f.FuncArgs)
 		return
 	}
-	r := w.makeRobot()
-
 	if len(f.Format) > 0 {
 		r.Format = setFormat(f.Format)
 	} else {

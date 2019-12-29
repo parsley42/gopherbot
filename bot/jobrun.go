@@ -96,7 +96,9 @@ func (w *worker) checkJobMatchersAndRun() (messageMatched bool) {
 		}
 		t := w.jobAvailable(jobName)
 		if t != nil {
-			c := &pipeContext{}
+			c := &pipeContext{
+				environment: make(map[string]string),
+			}
 			w.pipeContext = c
 			c.currentTask = t
 			// We need an active worker in case we need to call possibly

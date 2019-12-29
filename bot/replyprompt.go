@@ -186,10 +186,8 @@ func (r Robot) promptInternal(regexID string, user string, channel string, promp
 		user:    user,
 		channel: channel,
 	}
-	c := r.getLockedContext()
-	defer c.Unlock()
 	var rep replyWaiter
-	task, _, job := getTask(c.currentTask)
+	task, _, job := getTask(r.currentTask)
 	isJob := job != nil
 	if stockRepliesRe.MatchString(regexID) {
 		rep.re = stockReplies[regexID]
@@ -228,7 +226,7 @@ func (r Robot) promptInternal(regexID string, user string, channel string, promp
 	} else {
 		Log(robot.Debug, "Prompting for \"%s \" and creating reply waiters list and prompting for matcher: %q", prompt, matcher)
 		var puser string
-		if ui, ok := c.maps.user[user]; ok {
+		if ui, ok := r.maps.user[user]; ok {
 			puser = bracket(ui.UserID)
 		} else {
 			puser = user

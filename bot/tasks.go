@@ -1,9 +1,7 @@
 package bot
 
 import (
-	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"log"
 	"regexp"
 	"sync"
@@ -203,8 +201,7 @@ func initializePlugins() {
 	cfg := currentCfg.configuration
 	tasks := currentCfg.taskList
 	currentCfg.RUnlock()
-	c := &pipeContext{
-		environment:   make(map[string]string),
+	w := &worker{
 		cfg:           cfg,
 		tasks:         tasks,
 		automaticTask: true,
@@ -221,7 +218,7 @@ func initializePlugins() {
 				continue
 			}
 			Log(robot.Info, "Initializing plugin: %s", task.name)
-			c.startPipeline(nil, t, plugCommand, "init")
+			w.startPipeline(nil, t, plugCommand, "init")
 		}
 	} else {
 		state.Unlock()
@@ -243,11 +240,9 @@ func registerTask(name string) *Task {
 	if _, ok := currentCfg.nameMap[name]; ok {
 		log.Fatalf("Go task '%s' name collision with other task/job/plugin/namespace", name)
 	}
-	tid := getTaskID(name)
 	task := &Task{
 		name:     name,
 		taskType: taskGo,
-		taskID:   tid,
 	}
 	return task
 }
@@ -302,21 +297,4 @@ func RegisterTask(name string, privRequired bool, gotask robot.TaskHandler) {
 	task.Privileged = privRequired
 	currentCfg.addTask(task)
 	taskHandlers[name] = gotask
-}
-
-// return or generate a new taskID
-func getTaskID(name string) string {
-	taskNameIDmap.Lock()
-	taskID, ok := taskNameIDmap.m[name]
-	if ok {
-		taskNameIDmap.Unlock()
-		return taskID
-	}
-	// Generate a random id
-	p := make([]byte, 16)
-	rand.Read(p)
-	taskID = fmt.Sprintf("%x", p)
-	taskNameIDmap.m[name] = taskID
-	taskNameIDmap.Unlock()
-	return taskID
 }

@@ -70,7 +70,7 @@ func runScheduledTask(t interface{}, ts TaskSpec, cfg *configuration, tasks *tas
 
 	// Create the pipeContext to carry state through the pipeline.
 	// startPipeline will take care of registerActive()
-	c := &pipeContext{
+	w := &worker{
 		Channel:       task.Channel,
 		cfg:           cfg,
 		tasks:         tasks,
@@ -78,7 +78,6 @@ func runScheduledTask(t interface{}, ts TaskSpec, cfg *configuration, tasks *tas
 		isCommand:     isPlugin,
 		directMsg:     false,
 		automaticTask: true, // scheduled jobs don't get authorization / elevation checks
-		environment:   make(map[string]string),
 	}
 	var command string
 	if isPlugin {
@@ -87,5 +86,5 @@ func runScheduledTask(t interface{}, ts TaskSpec, cfg *configuration, tasks *tas
 		command = "run"
 	}
 	Log(robot.Info, "Starting scheduled task: %s", task.name)
-	c.startPipeline(nil, t, scheduled, command, ts.Arguments...)
+	w.startPipeline(nil, t, scheduled, command, ts.Arguments...)
 }

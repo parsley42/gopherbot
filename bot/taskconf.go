@@ -126,7 +126,6 @@ func loadTaskConfig(processed *configuration) (*taskList, error) {
 		task := &Task{
 			name:        ts.Name,
 			taskType:    taskExternal,
-			taskID:      getTaskID(ts.Name),
 			Description: ts.Description,
 			Parameters:  ts.Parameters,
 		}
@@ -248,7 +247,7 @@ LoadLoop:
 		if isPlugin {
 			cpath = "plugins/"
 		}
-		if err := getConfigFile(cpath+task.name+".yaml", task.taskID, false, tcfgload, tcfgdefault); err != nil {
+		if err := getConfigFile(cpath+task.name+".yaml", false, tcfgload, tcfgdefault); err != nil {
 			msg := fmt.Sprintf("Problem loading configuration file(s) for task '%s', disabling: %v", task.name, err)
 			Log(robot.Error, msg)
 			task.Disabled = true

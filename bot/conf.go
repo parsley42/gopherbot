@@ -109,12 +109,12 @@ func loadConfig(preConnect bool) error {
 	configload := make(map[string]json.RawMessage)
 	processed := &configuration{}
 
-	if err := getConfigFile("gopherbot.yaml", "", true, configload); err != nil {
+	if err := getConfigFile("gopherbot.yaml", true, configload); err != nil {
 		return fmt.Errorf("Loading configuration file: %v", err)
 	}
 
 	reporaw := make(map[string]json.RawMessage)
-	getConfigFile("repositories.yaml", "", false, reporaw)
+	getConfigFile("repositories.yaml", false, reporaw)
 	repolist := make(map[string]robot.Repository)
 	for k, repojson := range reporaw {
 		if strings.ContainsRune(k, ':') {

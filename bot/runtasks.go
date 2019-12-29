@@ -22,7 +22,7 @@ var envPassThrough = []string{
 // Called from dispatch: checkPluginMatchersAndRun,
 // jobcommands: checkJobMatchersAndRun or ScheduledTask,
 // runPipeline.
-func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
+func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType, command string, args ...string) (ret robot.TaskRetVal) {
 	task, plugin, job := getTask(t)
 	state.RLock()
 	if state.shuttingDown {
@@ -34,12 +34,17 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 	raiseThreadPriv(fmt.Sprintf("new pipeline for task %s / %s", task.name, command))
 	isJob := job != nil
 	isPlugin := plugin != nil
-	parent.Lock()
-	ppipeName := parent.pipeName
-	ppipeDesc := parent.pipeDesc
-	parent.Unlock()
+	var ppipeName, ppipeDesc string
+	if parent != nil {
+		parent.Lock()
+		ppipeName = parent.pipeName
+		ppipeDesc = parent.pipeDesc
+		parent.Unlock()
+	}
 	// NOTE: we don't need to worry about locking until the pipeline actually starts
-	c := &pipeContext{}
+	c := &pipeContext{
+		environment: make(map[string]string),
+	}
 	w.pipeContext = c
 	c.pipeName = task.name
 	c.pipeDesc = task.Description
@@ -92,7 +97,8 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 		// TODO / NOTE: RawMsg will differ between plugins and triggers - document?
 		c.jobName = task.name // Exclusive always uses the jobName, regardless of the task that calls it
 		c.environment["GOPHER_JOB_NAME"] = c.jobName
-		c.jobChannel = task.Channel
+		iChannel := w.Channel
+		w.Channel = task.Channel
 		c.history = interfaces.history
 		var jh jobHistory
 		rememberRuns := job.HistoryLogs
@@ -147,8 +153,7 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 			}
 		}
 		if !job.Quiet || c.verbose {
-			r := c.makeRobot()
-			iChannel := c.Channel // channel where job was triggered / run
+			r := w.makeRobot()
 			taskinfo := task.name
 			if len(args) > 0 {
 				taskinfo += " " + strings.Join(args, " ")
@@ -161,15 +166,15 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 			}
 			switch ptype {
 			case jobTrigger:
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Starting job '%s', run %d%s - triggered by app '%s' in channel '%s'", taskinfo, c.runIndex, link, c.User, iChannel))
+				r.Say("Starting job '%s', run %d%s - triggered by app '%s' in channel '%s'", taskinfo, c.runIndex, link, w.User, iChannel)
 			case jobCmd:
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Starting job '%s', run %d%s - requested by user '%s' in channel '%s'", taskinfo, c.runIndex, link, c.User, iChannel))
+				r.Say("Starting job '%s', run %d%s - requested by user '%s' in channel '%s'", taskinfo, c.runIndex, link, w.User, iChannel)
 			case spawnedTask:
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Starting job '%s', run %d%s - spawned by pipeline '%s': %s", taskinfo, c.runIndex, link, ppipeName, ppipeDesc))
+				r.Say("Starting job '%s', run %d%s - spawned by pipeline '%s': %s", taskinfo, c.runIndex, link, ppipeName, ppipeDesc)
 			case scheduled:
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Starting scheduled job '%s', run %d%s", taskinfo, c.runIndex, link))
+				r.Say("Starting scheduled job '%s', run %d%s", taskinfo, c.runIndex, link)
 			default:
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Starting job '%s', run %d%s", taskinfo, c.runIndex, link))
+				r.Say("Starting job '%s', run %d%s", taskinfo, c.runIndex, link)
 			}
 			c.verbose = true
 		}
@@ -180,7 +185,7 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 
 	// Once Active, we need to use the Mutex for access to some fields; see
 	// pipeContext/type pipeContext
-	c.registerActive(parent)
+	w.registerActive(parent)
 
 	var errString string
 	ret, errString = w.runPipeline(ptype, true)
@@ -192,23 +197,27 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 	// Run final and fail (cleanup) tasks
 	if ret != robot.Normal {
 		if len(c.failTasks) > 0 {
+			c.Lock()
 			c.stage = failTasks
-			c.runPipeline(ptype, false)
+			c.Unlock()
+			w.runPipeline(ptype, false)
 		}
 	}
 	if len(c.finalTasks) > 0 {
+		c.Lock()
 		c.stage = finalTasks
-		c.runPipeline(ptype, false)
+		c.Unlock()
+		w.runPipeline(ptype, false)
 	}
 	if ret != robot.Normal {
-		if !c.automaticTask && errString != "" {
-			c.makeRobot().Reply(errString)
+		if !w.automaticTask && errString != "" {
+			w.makeRobot().Reply(errString)
 		}
 	}
 	if isJob && (!job.Quiet || ret != robot.Normal) {
-		r := c.makeRobot()
+		r := w.makeRobot()
 		if ret == robot.Normal {
-			r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Finished job '%s', run %d, final task '%s', status: %s", c.pipeName, c.runIndex, c.taskName, ret))
+			r.Say("Finished job '%s', run %d, final task '%s', status: %s", c.pipeName, c.runIndex, c.taskName, ret)
 		} else {
 			var td string
 			if len(c.failedTaskDescription) > 0 {
@@ -219,23 +228,23 @@ func (w *worker) startPipeline(parent *pipeContext, t interface{}, ptype pipelin
 				jobName += ":" + c.nsExtension
 			}
 			if ret == robot.PipelineAborted {
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Job '%s', run number %d aborted, job '%s' already in progress", jobName, c.runIndex, c.exclusiveTag))
+				r.Say("Job '%s', run number %d aborted, job '%s' already in progress", jobName, c.runIndex, c.exclusiveTag)
 			} else {
-				r.SendChannelMessage(c.jobChannel, fmt.Sprintf("Job '%s', run number %d failed in task: '%s'%s, exit code: %s", jobName, c.runIndex, c.failedTask, td, ret))
+				r.Say("Job '%s', run number %d failed in task: '%s'%s, exit code: %s", jobName, c.runIndex, c.failedTask, td, ret)
 			}
 		}
 	}
-	c.deregister()
+	w.deregister()
 	if c.exclusive {
 		tag := c.exclusiveTag
 		runQueues.Lock()
 		queue, _ := runQueues.m[tag]
 		queueLen := len(queue)
 		if queueLen == 0 {
-			Log(robot.Debug, "Bot #%d finished exclusive pipeline '%s', no waiters in queue, removing", c.id, c.exclusiveTag)
+			Log(robot.Debug, "Bot #%d finished exclusive pipeline '%s', no waiters in queue, removing", w.id, c.exclusiveTag)
 			delete(runQueues.m, tag)
 		} else {
-			Log(robot.Debug, "Bot #%d finished exclusive pipeline '%s', %d waiters in queue, waking next task", c.id, c.exclusiveTag, queueLen)
+			Log(robot.Debug, "Bot #%d finished exclusive pipeline '%s', %d waiters in queue, waking next task", w.id, c.exclusiveTag, queueLen)
 			wakeUpTask := queue[0]
 			queue = queue[1:]
 			runQueues.m[tag] = queue
@@ -417,7 +426,8 @@ func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.Tas
 	return
 }
 
-func (c *pipeContext) getEnvironment(task *Task) map[string]string {
+func (w *worker) getEnvironment(task *Task) map[string]string {
+	c := w.pipeContext
 	c.Lock()
 	defer c.Unlock()
 	envhash := make(map[string]string)
@@ -427,9 +437,9 @@ func (c *pipeContext) getEnvironment(task *Task) map[string]string {
 		}
 	}
 
-	envhash["GOPHER_CHANNEL"] = c.Channel
-	envhash["GOPHER_USER"] = c.User
-	envhash["GOPHER_PROTOCOL"] = fmt.Sprintf("%s", c.Protocol)
+	envhash["GOPHER_CHANNEL"] = w.Channel
+	envhash["GOPHER_USER"] = w.User
+	envhash["GOPHER_PROTOCOL"] = fmt.Sprintf("%s", w.Protocol)
 	envhash["GOPHER_TASK_NAME"] = c.taskName
 	envhash["GOPHER_PIPELINE_TYPE"] = c.ptype.String()
 	// Configured parameters for a pipeline task don't apply if already set
@@ -441,7 +451,7 @@ func (c *pipeContext) getEnvironment(task *Task) map[string]string {
 	}
 	// Next lowest prio are namespace params
 	if len(task.NameSpace) > 0 {
-		if ns, ok := c.tasks.nameSpaces[task.NameSpace]; ok {
+		if ns, ok := w.tasks.nameSpaces[task.NameSpace]; ok {
 			for _, p := range ns.Parameters {
 				_, exists := envhash[p.Name]
 				if !exists {

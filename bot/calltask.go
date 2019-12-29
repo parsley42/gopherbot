@@ -157,7 +157,7 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 	}
 	// External task; add lookup for http.go
 	externalLookup.Lock()
-	externalLookup.m[r.eid] = w
+	externalLookup.m[r.eid] = r
 	externalLookup.Unlock()
 	defer func() {
 		externalLookup.Lock()
