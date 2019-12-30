@@ -126,40 +126,37 @@ func (w *worker) deregister() {
 // (or doesn't). It could also be called Context, or PipelineState; but for
 // use by plugins, it's best left as Robot.
 type pipeContext struct {
-	workingDirectory string                // directory where tasks run relative to $(pwd)
-	baseDirectory    string                // base for this pipeline relative to $(pwd), depends on `Homed`, affects SetWorkingDirectory
-	privileged       bool                  // privileged jobs flip this flag, causing tasks in the pipeline to run in cfgdir
-	eid              string                // unique ID for external tasks
-	history          robot.HistoryProvider // history provider for generating the logger
-	timeZone         *time.Location        // for history timestamping
-	logger           robot.HistoryLogger   // where to send stdout / stderr
-	active           bool                  // whether this context has been registered as active
-	ptype            pipelineType          // what started this pipeline
-
 	// Parent and child values protected by the activePipelines lock
-	_parent, _child *worker
-	elevated        bool              // set when required elevation succeeds
-	environment     map[string]string // environment vars set for each job/plugin in the pipeline
-	stage           pipeStage         // which pipeline is being run; primaryP, finalP, failP
-	jobInitialized  bool              // whether a job has started
-	jobName         string            // name of the running job
-	nsExtension     string            // extended namespace
-	runIndex        int               // run number of a job
-	verbose         bool              // flag if initializing job was verbose
-	nextTasks       []TaskSpec        // tasks in the pipeline
-	finalTasks      []TaskSpec        // clean-up tasks that always run when the pipeline ends
-	failTasks       []TaskSpec        // clean-up tasks that run when a pipeline fails
-
-	failedTask, failedTaskDescription string // set when a task fails
-
-	pipeName, pipeDesc string      // name and description of task that started pipeline
-	currentTask        interface{} // pointer to currently executing task
-	taskName           string      // name of current task
-	taskDesc           string      // description for same
-	osCmd              *exec.Cmd   // running Command, for aborting a pipeline
-
-	exclusiveTag  string // tasks with the same exclusiveTag never run at the same time
-	exclusive     bool   // indicates task was running exclusively
-	queueTask     bool   // whether to queue up if Exclusive call failed
-	abortPipeline bool   // Exclusive request failed w/o queueTask
+	_parent, _child                   *worker
+	workingDirectory                  string            // directory where tasks run relative to $(pwd)
+	baseDirectory                     string            // base for this pipeline relative to $(pwd), depends on `Homed`, affects SetWorkingDirectory
+	eid                               string            // unique ID for external tasks
+	active                            bool              // whether this context has been registered as active
+	environment                       map[string]string // environment vars set for each job/plugin in the pipeline
+	runIndex                          int               // run number of a job
+	verbose                           bool              // flag if initializing job was verbose
+	nextTasks                         []TaskSpec        // tasks in the pipeline
+	finalTasks                        []TaskSpec        // clean-up tasks that always run when the pipeline ends
+	failTasks                         []TaskSpec        // clean-up tasks that run when a pipeline fails
+	failedTask, failedTaskDescription string            // set when a task fails
+	taskName                          string            // name of current task
+	taskDesc                          string            // description for same
+	osCmd                             *exec.Cmd         // running Command, for aborting a pipeline
+	exclusiveTag                      string            // tasks with the same exclusiveTag never run at the same time
+	queueTask                         bool              // whether to queue up if Exclusive call failed
+	abortPipeline                     bool              // Exclusive request failed w/o queueTask
+	// Stuff we want to copy in makeRobot
+	privileged         bool                  // privileged jobs flip this flag, causing tasks in the pipeline to run in cfgdir
+	history            robot.HistoryProvider // history provider for generating the logger
+	timeZone           *time.Location        // for history timestamping
+	logger             robot.HistoryLogger   // where to send stdout / stderr
+	ptype              pipelineType          // what started this pipeline
+	elevated           bool                  // set when required elevation succeeds
+	stage              pipeStage             // which pipeline is being run; primaryP, finalP, failP
+	jobInitialized     bool                  // whether a job has started
+	jobName            string                // name of the running job
+	pipeName, pipeDesc string                // name and description of task that started pipeline
+	nsExtension        string                // extended namespace
+	currentTask        interface{}           // pointer to currently executing task
+	exclusive          bool                  // indicates task was running exclusively
 }
