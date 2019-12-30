@@ -51,6 +51,7 @@ func (w *worker) makeRobot() Robot {
 			currentTask:    w.currentTask,
 			nsExtension:    w.nsExtension,
 			exclusive:      w.exclusive,
+			eid:            w.eid,
 		},
 		cfg:          w.cfg,
 		tasks:        w.tasks,

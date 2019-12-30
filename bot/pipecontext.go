@@ -66,7 +66,6 @@ func (w *worker) registerActive(parent *worker) {
 	if w.Incoming != nil {
 		w.Protocol, _ = getProtocol(w.Incoming.Protocol)
 	}
-	w.environment["GOPHER_HTTP_POST"] = "http://" + listenPort
 
 	// Only needed for bots not created by IncomingMessage
 	if w.maps == nil {
@@ -94,11 +93,6 @@ func (w *worker) registerActive(parent *worker) {
 		}
 	}
 
-	w.nextTasks = make([]TaskSpec, 0)
-	w.finalTasks = make([]TaskSpec, 0)
-
-	w.environment["GOPHER_INSTALLDIR"] = installPath
-
 	activePipelines.Lock()
 	if len(w.eid) == 0 {
 		var eid string
@@ -116,6 +110,8 @@ func (w *worker) registerActive(parent *worker) {
 
 	}
 	w.environment["GOPHER_CALLER_ID"] = w.eid
+	w.environment["GOPHER_HTTP_POST"] = "http://" + listenPort
+	w.environment["GOPHER_INSTALLDIR"] = installPath
 
 	if parent != nil {
 		parent._child = w
