@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/lnxjedi/gopherbot/robot"
@@ -19,7 +20,7 @@ import (
 // callTask(...).
 type Robot struct {
 	*robot.Message
-	wid          int                         // worker ID
+	tid          int                         // task ID for looking up the *worker
 	pipeContext                              // snapshot copy of pipeline context
 	cfg          *configuration              // convenience only; r.cfg shorter than r.worker.cfg
 	tasks        *taskList                   // same
@@ -27,12 +28,35 @@ type Robot struct {
 	repositories map[string]robot.Repository // same
 }
 
-// makeRobot returns a Robot for plugins; the id lets Robot methods
+// Incrementing tid for individual tasks that run, so Go Robots
+// can look up the *worker when needed.
+var taskID = struct {
+	idx int
+	sync.Mutex
+}{
+	0,
+	sync.Mutex{},
+}
+
+// Get the next task ID; 0 is an illegal value
+func getTaskID() int {
+	taskID.Lock()
+	taskID.idx++
+	if taskID.idx == 0 {
+		taskID.idx = 1
+	}
+	tid := taskID.idx
+	taskID.Unlock()
+	return tid
+}
+
+// makeRobot returns a Robot for plugins; the tid lets Robot methods
 // get a reference back to the original context when needed. The Robot
 // should contain a copy of almost all of the information needed for plugins
 // to run.
 func (w *worker) makeRobot() Robot {
 	r := Robot{
+		tid: getTaskID(),
 		// Copy these bits, which can be modified for an individual Robot
 		Message: &robot.Message{
 			User:            w.User,
@@ -68,7 +92,9 @@ func (w *worker) makeRobot() Robot {
 func (r Robot) CheckAdmin() bool {
 	// Note that this does "the right thing", using the user from the worker;
 	// the user in the Robot is writeable.
-	return r.worker.CheckAdmin()
+	w := getLockedWorker(r.tid)
+	w.Unlock()
+	return w.CheckAdmin()
 }
 
 func (w *worker) CheckAdmin() bool {
@@ -91,9 +117,9 @@ func (r Robot) SetParameter(name, value string) bool {
 	if !identifierRe.MatchString(name) {
 		return false
 	}
-	c := r.worker.pipeContext
-	r.worker.Lock()
-	defer r.worker.Unlock()
+	w := getLockedWorker(r.tid)
+	defer w.Unlock()
+	c := w.pipeContext
 	c.environment[name] = value
 	return true
 }
@@ -110,9 +136,9 @@ func (r Robot) SetParameter(name, value string) bool {
 // Fails if the new working directory doesn't exist
 // See also: tasks/setworkdir.sh for updating working directory in a pipeline
 func (r Robot) SetWorkingDirectory(path string) bool {
-	c := r.worker.pipeContext
-	r.worker.Lock()
-	defer r.worker.Unlock()
+	w := getLockedWorker(r.tid)
+	defer w.Unlock()
+	c := w.pipeContext
 	if path == "." {
 		c.workingDirectory = c.baseDirectory
 		return true

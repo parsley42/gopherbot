@@ -71,28 +71,6 @@ type taskReturn struct {
 	retval    robot.TaskRetVal
 }
 
-// Incrementing tid for individual tasks that run, so Go Robots
-// can look up the *worker when needed.
-var taskID = struct {
-	idx int
-	sync.Mutex
-}{
-	0,
-	sync.Mutex{},
-}
-
-// Get the next context ID
-func getTaskID() int {
-	contextID.Lock()
-	contextID.idx++
-	if contextID.idx == 0 {
-		contextID.idx = 1
-	}
-	ctxid := contextID.idx
-	contextID.Unlock()
-	return ctxid
-}
-
 // Maps populated by callTaskThread, so external tasks can get their Robot
 // from the eid (GOPHER_CALLER_ID), and Go tasks can get a handle to the
 // *worker from an incrementing tid (task id).
@@ -106,12 +84,33 @@ var taskLookup = struct {
 	sync.RWMutex{},
 }
 
-// funtion for active Go Robots to look up the *worker, always locked
-// before returning.
-func getLockedWorker(idx int) *worker {
+// register a worker for a tid so Go tasks can look up the *worker
+func (w *worker) registerWorker(tid int) {
 	taskLookup.Lock()
-	w, ok := taskLookup.i[idx]
+	taskLookup.i[tid] = w
 	taskLookup.Unlock()
+}
+
+// deregister the worker when done
+func deregisterWorker(tid int) {
+	taskLookup.Lock()
+	delete(taskLookup.i, tid)
+	taskLookup.Unlock()
+}
+
+// funtion for active Go Robots to look up the *worker, always locked
+// before returning. Note that we always pass a Robot.tid instead of making
+// this a method on the Robot, since copying the whole robot for a single
+// int is senseless.
+func getLockedWorker(idx int) *worker {
+	if idx == 0 { // illegal value
+		_, file, line, _ := runtime.Caller(1)
+		Log(robot.Error, "Illegal call to getLockedWorker with tid = 0 in '%s', line '%s'", file, line)
+		return nil
+	}
+	taskLookup.RLock()
+	w, ok := taskLookup.i[idx]
+	taskLookup.RUnlock()
 	if !ok {
 		_, file, line, _ := runtime.Caller(2)
 		Log(robot.Error, "Illegal call to getLockedWorker for inactive worker in '%s', line '%s'", file, line)
@@ -121,7 +120,9 @@ func getLockedWorker(idx int) *worker {
 	return w
 }
 
-// callTask does the work of running a job, task or plugin with a command and arguments.
+// callTask does the work of running a job, task or plugin with a command and
+// arguments. Note that callTask(Thread) has to concern itself with locking of
+// the worker because it can be called within a task by the Elevate() method.
 func (w *worker) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
 	rc := make(chan taskReturn)
 	go w.callTaskThread(rc, t, command, args...)
@@ -189,23 +190,14 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 	envhash := w.getEnvironment(task)
 	r.environment = envhash
 
-	// Task lookup; add lookup for http.go
-	tid := getTaskID()
-	taskLookup.Lock()
-	taskLookup.e[eid] = r
-	taskLookup.i[tid] = w
-	taskLookup.Unlock()
-	defer func() {
-		taskLookup.Lock()
-		delete(taskLookup.e, eid)
-		taskLookup.Unlock()
-	}()
+	w.registerWorker(r.tid)
 	if isPlugin && plugin.taskType == taskGo {
 		if command != "init" {
 			emit(GoPluginRan)
 		}
 		Log(robot.Debug, "Calling go plugin: '%s' with args: %q", task.name, args)
 		ret := pluginHandlers[task.name].Handler(r, command, args...)
+		deregisterWorker(r.tid)
 		rchan <- taskReturn{"", ret}
 		return
 	} else if task.taskType == taskGo {
@@ -216,12 +208,21 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 		} else {
 			ret = taskHandlers[task.name].Handler(r, args...)
 		}
+		deregisterWorker(r.tid)
 		rchan <- taskReturn{"", ret}
 		return
 	}
+
+	// Task lookup; add lookup for http.go
 	taskLookup.Lock()
-	delete(taskLookup.i, tid)
+	taskLookup.e[eid] = r
 	taskLookup.Unlock()
+	defer func() {
+		taskLookup.Lock()
+		delete(taskLookup.e, eid)
+		taskLookup.Unlock()
+		deregisterWorker(r.tid)
+	}()
 
 	var taskPath string // full path to the executable
 	var err error
@@ -246,6 +247,11 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 	w.Lock()
 	w.osCmd = cmd
 	w.Unlock()
+	defer func() {
+		w.Lock()
+		w.osCmd = nil
+		w.Unlock()
+	}()
 
 	// Homed tasks ALWAYS run in cwd, Homed pipelines may have modified the
 	// working directory with SetWorkingDirectory.

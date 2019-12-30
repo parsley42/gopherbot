@@ -172,7 +172,8 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		return
 	}
 	r := m.(Robot)
-	w := r.worker
+	w := getLockedWorker(r.tid)
+	w.Unlock()
 
 	var histType, latest, histSpec, index, user, address string
 
@@ -312,7 +313,7 @@ func (w *worker) jobSecurityCheck(t interface{}, command string) bool {
 		}
 	}
 	r := w.makeRobot()
-	if r.checkAuthorization(t, command) != robot.Success {
+	if r.checkAuthorization(w, t, command) != robot.Success {
 		return false
 	}
 	if !w.elevated {

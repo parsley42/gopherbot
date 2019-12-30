@@ -81,13 +81,13 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		return false
 	}
 	r.Log(robot.Debug, "Extending namespace for job '%s': %s (branch %s)", r.jobName, repo, branch)
-	r.worker.Lock()
-	r.worker.nsExtension = ext
+	w := getLockedWorker(r.tid)
+	w.nsExtension = ext
 	// old, deprecated, TODO: remove me someday
-	r.worker.environment["GOPHER_NAMESPACE_EXTENDED"] = repo
+	w.environment["GOPHER_NAMESPACE_EXTENDED"] = repo
 	// new hotness
-	r.worker.environment["GOPHER_REPOSITORY"] = repo
-	r.worker.Unlock()
+	w.environment["GOPHER_REPOSITORY"] = repo
+	w.Unlock()
 
 	jk := histPrefix + r.jobName
 	var pjh jobHistory
@@ -136,10 +136,10 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		} else {
 			start = time.Now()
 		}
-		r.worker.Lock()
-		r.worker.runIndex = jh.NextIndex
-		r.worker.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", jh.NextIndex)
-		r.worker.Unlock()
+		w.Lock()
+		w.runIndex = jh.NextIndex
+		w.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", jh.NextIndex)
+		w.Unlock()
 		hist := historyLog{
 			LogIndex:   jh.NextIndex,
 			CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
@@ -164,16 +164,16 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 					if r.logger != nil {
 						r.logger.Section("close log", fmt.Sprintf("Job '%s' extended namespace: '%s'; starting new log on next task", r.jobName, ext))
 					}
-					r.worker.Lock()
-					r.worker.logger = pipeHistory
-					r.worker.logger.Section("new log", fmt.Sprintf("Extended log created by job '%s'", r.jobName))
+					w.Lock()
+					w.logger = pipeHistory
+					w.logger.Section("new log", fmt.Sprintf("Extended log created by job '%s'", r.jobName))
 					r.Log(robot.Debug, "Started new history for job '%s' with namespace '%s'", r.jobName, ext)
 					var link string
-					if url, ok := r.worker.history.GetHistoryURL(hspec, hist.LogIndex); ok {
+					if url, ok := w.history.GetHistoryURL(hspec, hist.LogIndex); ok {
 						link = fmt.Sprintf(" (link: %s)", url)
 					}
-					r.Say("Job '%s' extended namespace: %s:%s, run %d%s", r.jobName, r.jobName, ext, r.worker.runIndex, link)
-					r.worker.Unlock()
+					r.Say("Job '%s' extended namespace: %s:%s, run %d%s", r.jobName, r.jobName, ext, w.runIndex, link)
+					w.Unlock()
 				}
 			} else {
 				if r.history == nil {
@@ -182,16 +182,16 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 			}
 		}
 	}
-	r.worker.Lock()
+	w.Lock()
 	for _, param := range repository.Parameters {
 		name := param.Name
 		value := param.Value
-		_, exists := r.worker.environment[name]
+		_, exists := w.environment[name]
 		if !exists {
-			r.worker.environment[name] = value
+			w.environment[name] = value
 		}
 	}
-	r.worker.Unlock()
+	w.Unlock()
 	return true
 }
 
@@ -286,21 +286,21 @@ func (r Robot) pipeTask(pflavor pipeAddFlavor, ptype pipeAddType, name string, a
 	}
 	argstr := strings.Join(args, " ")
 	r.Log(robot.Debug, "Adding pipeline task %s/%s: %s %s", pflavor, ptype, name, argstr)
-	r.worker.Lock()
+	w := getLockedWorker(r.tid)
 	switch pflavor {
 	case flavorAdd:
-		r.worker.nextTasks = append(r.worker.nextTasks, ts)
-		r.worker.Unlock()
+		w.nextTasks = append(w.nextTasks, ts)
+		w.Unlock()
 	case flavorFinal:
 		// Final tasks are FILO/LIFO (run in reverse order of being added)
-		r.worker.finalTasks = append([]TaskSpec{ts}, r.worker.finalTasks...)
-		r.worker.Unlock()
+		w.finalTasks = append([]TaskSpec{ts}, w.finalTasks...)
+		w.Unlock()
 	case flavorFail:
-		r.worker.failTasks = append(r.worker.failTasks, ts)
-		r.worker.Unlock()
+		w.failTasks = append(w.failTasks, ts)
+		w.Unlock()
 	case flavorSpawn:
-		r.worker.Unlock()
-		sb := r.worker.clone()
+		w.Unlock()
+		sb := w.clone()
 		go sb.startPipeline(nil, t, spawnedTask, command, args...)
 	}
 	return robot.Ok

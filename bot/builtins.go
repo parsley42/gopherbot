@@ -88,6 +88,9 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			Log(robot.Trace, "Help requested for term", term)
 		}
 
+		// Nothing we need will ever change for a worker.
+		w := getLockedWorker(r.tid)
+		w.Unlock()
 		helpLines := make([]string, 0, tooLong)
 		for _, t := range tasks.t[1:] {
 			task, plugin, _ := getTask(t)
@@ -96,7 +99,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			}
 			// If a keyword was supplied, give help for all matching commands with channels;
 			// without a keyword, show help for all commands available in the channel.
-			if !r.worker.pluginAvailable(task, hasKeyword, true) {
+			if !w.pluginAvailable(task, hasKeyword, true) {
 				continue
 			}
 			Log(robot.Trace, "Checking help for plugin %s (term: %s)", task.name, term)
@@ -157,7 +160,7 @@ func help(m robot.Robot, command string, args ...string) (retval robot.TaskRetVa
 			// Unless builtins are disabled or reconfigured, 'ping' is available in all channels
 			r.Say("Sorry, I didn't find any commands matching your keyword")
 		case len(helpLines) > tooLong:
-			if !r.worker.directMsg {
+			if !w.directMsg {
 				r.Reply("(the help output was pretty long, so I sent you a private message)")
 				if !hasKeyword {
 					helpOutput = "Command(s) available in channel: " + r.Channel + "\n" + strings.Join(helpLines, lineSeparator)

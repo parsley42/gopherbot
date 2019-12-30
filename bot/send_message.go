@@ -172,7 +172,9 @@ func (r Robot) Reply(msg string, v ...interface{}) robot.RetVal {
 	if len(channel) == 0 {
 		channel = r.Channel
 	}
-	if r.worker.BotUser {
+	w := getLockedWorker(r.tid)
+	w.Unlock()
+	if w.BotUser {
 		return interfaces.SendProtocolChannelMessage(r.Channel, r.User+": "+msg, r.Format)
 	}
 	return interfaces.SendProtocolUserChannelMessage(user, r.User, r.Channel, msg, r.Format)

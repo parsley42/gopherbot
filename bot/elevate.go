@@ -26,12 +26,14 @@ func (r Robot) elevate(task *Task, immediate bool) (retval robot.TaskRetVal) {
 		if !immediate {
 			immedString = "false"
 		}
-		_, elevRet := r.worker.callTask(ePlug, "elevate", immedString)
+		w := getLockedWorker(r.tid)
+		w.Unlock()
+		_, elevRet := w.callTask(ePlug, "elevate", immedString)
 		elevated := elevRet == robot.Success
-		r.worker.Lock()
-		r.worker.elevated = elevated
-		r.worker.currentTask = r.currentTask
-		r.worker.Unlock()
+		w.Lock()
+		w.elevated = elevated
+		w.currentTask = r.currentTask
+		w.Unlock()
 		if elevated {
 			Log(robot.Audit, "Elevation succeeded by elevator '%s', user '%s', task '%s' in channel '%s'", ePlug.name, r.User, task.name, r.Channel)
 			emit(ElevRanSuccess)

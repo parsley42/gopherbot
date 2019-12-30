@@ -4,9 +4,7 @@ import "github.com/lnxjedi/gopherbot/robot"
 
 func restart(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	r := m.(Robot)
-	r.worker.Lock()
-	pn := r.worker.pipeName
-	r.worker.Unlock()
+	pn := r.pipeName
 	state.Lock()
 	if state.shuttingDown {
 		state.Unlock()

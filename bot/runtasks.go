@@ -213,13 +213,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	// locking is no longer needed. Invalid calls to getLockedWorker()
 	// will log an error and return nil.
 
-	// nsExtension := c.nsExtension
-	// failedTaskDescription := c.failedTaskDescription
-	// jobName := c.pipeName
-	// runIndex := c.runIndex
-	// taskName := c.taskName
-	// exclusiveTag := c.exclusiveTag
-	// failedTask := c.failedTask
 	if ret != robot.Normal {
 		if !w.automaticTask && errString != "" {
 			w.makeRobot().Reply(errString)
@@ -321,7 +314,7 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 					break
 				}
 			}
-			if r.checkAuthorization(t, command, args...) != robot.Success {
+			if r.checkAuthorization(w, t, command, args...) != robot.Success {
 				ret = robot.Fail
 				break
 			}

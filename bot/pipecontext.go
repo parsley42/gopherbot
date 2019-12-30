@@ -42,10 +42,12 @@ func getCtxID() int {
 // Global persistent maps of pipelines running, only used for listing/forcibly
 // stopping pipelines.
 var activePipelines = struct {
-	i map[int]*worker
+	i    map[int]*worker
+	eids map[string]struct{}
 	sync.Mutex
 }{
 	make(map[int]*worker),
+	make(map[string]struct{}),
 	sync.Mutex{},
 }
 

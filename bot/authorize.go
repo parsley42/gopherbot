@@ -6,7 +6,7 @@ const technicalAuthError = "Sorry, authorization failed due to a problem with th
 const configAuthError = "Sorry, authorization failed due to a configuration error"
 
 // Check for a configured Authorizer and check authorization
-func (r Robot) checkAuthorization(t interface{}, command string, args ...string) (retval robot.TaskRetVal) {
+func (r Robot) checkAuthorization(w *worker, t interface{}, command string, args ...string) (retval robot.TaskRetVal) {
 	task, plugin, _ := getTask(t)
 	isPlugin := plugin != nil
 	if isPlugin {
@@ -55,11 +55,8 @@ func (r Robot) checkAuthorization(t interface{}, command string, args ...string)
 	_, authPlug, _ := getTask(authTask)
 	if authPlug != nil {
 		args = append([]string{task.name, task.AuthRequire, command}, args...)
-		_, authRet := r.worker.callTask(authPlug, "authorize", args...)
-		// restore the current task, changed in callTask
-		r.worker.Lock()
-		r.worker.currentTask = r.currentTask
-		r.worker.Unlock()
+		_, authRet := w.callTask(authPlug, "authorize", args...)
+		w.currentTask = r.currentTask
 		if authRet == robot.Success {
 			Log(robot.Audit, "Authorization succeeded by authorizer '%s' for user '%s' calling command '%s' for task '%s' in channel '%s'; AuthRequire: '%s'", authPlug.name, r.User, command, task.name, r.Channel, task.AuthRequire)
 			emit(AuthRanSuccess)
