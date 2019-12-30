@@ -212,7 +212,7 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 
 	if ret != robot.Normal {
 		if !w.automaticTask && errString != "" {
-			w.makeRobot().Reply(errString)
+			w.Reply(errString)
 		}
 	}
 	if isJob && (!job.Quiet || ret != robot.Normal) {

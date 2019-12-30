@@ -73,6 +73,7 @@ func (w *worker) makeRobot() Robot {
 			elevated:       w.elevated,
 			stage:          w.stage,
 			jobInitialized: w.jobInitialized,
+			jobName:        w.jobName,
 			currentTask:    w.currentTask,
 			nsExtension:    w.nsExtension,
 			exclusive:      w.exclusive,
