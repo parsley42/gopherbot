@@ -98,7 +98,9 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		c.jobName = task.name // Exclusive always uses the jobName, regardless of the task that calls it
 		c.environment["GOPHER_JOB_NAME"] = c.jobName
 		iChannel := w.Channel
+		// To change the channel to the job channel, we need to clear the ProcotolChannel
 		w.Channel = task.Channel
+		w.ProtocolChannel = ""
 		c.history = interfaces.history
 		var jh jobHistory
 		rememberRuns := job.HistoryLogs
