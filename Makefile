@@ -14,8 +14,9 @@ modular: CGO = 1
 modular: BUILDTAG = modular
 modular: gopherbot $(MODULES)
 
-matchtest: TESTARGS = -run ${TEST}
-matchtest: test
+ifdef TEST
+TESTARGS = -run ${TEST}
+endif
 
 static: gopherbot
 
