@@ -39,34 +39,19 @@ func getCtxID() int {
 	return ctxid
 }
 
-// Global persistent maps of pipelines running, for listing/forcibly
-// stopping.
+// Global persistent maps of pipelines running, only used for listing/forcibly
+// stopping pipelines.
 var activePipelines = struct {
-	i    map[int]*worker
-	eids map[string]struct{}
+	i map[int]*worker
 	sync.Mutex
 }{
 	make(map[int]*worker),
-	make(map[string]struct{}),
 	sync.Mutex{},
 }
-
-// getpipeContextInt is used to look up a pipeContext from a Robot in when needed.
-// Note that 0 is never a valid bot id, and this will return nil in that case.
-// func getpipeContextInt(idx int) *worker {
-// 	activePipelines.Lock()
-// 	w, _ := activePipelines.i[idx]
-// 	activePipelines.Unlock()
-// 	return w
-// }
 
 // Assign a worker an external ID and register it in the global map of running
 // pipelines.
 func (w *worker) registerActive(parent *worker) {
-	if w.Incoming != nil {
-		w.Protocol, _ = getProtocol(w.Incoming.Protocol)
-	}
-
 	// Only needed for bots not created by IncomingMessage
 	if w.maps == nil {
 		currentUCMaps.Lock()
@@ -107,7 +92,6 @@ func (w *worker) registerActive(parent *worker) {
 			}
 		}
 		w.eid = eid
-
 	}
 	w.environment["GOPHER_CALLER_ID"] = w.eid
 	w.environment["GOPHER_HTTP_POST"] = "http://" + listenPort
@@ -140,7 +124,6 @@ func (w *worker) deregister() {
 // (or doesn't). It could also be called Context, or PipelineState; but for
 // use by plugins, it's best left as Robot.
 type pipeContext struct {
-	sync.Mutex                             // Lock to protect the bot context when pipeline running
 	workingDirectory string                // directory where tasks run relative to $(pwd)
 	baseDirectory    string                // base for this pipeline relative to $(pwd), depends on `Homed`, affects SetWorkingDirectory
 	privileged       bool                  // privileged jobs flip this flag, causing tasks in the pipeline to run in cfgdir

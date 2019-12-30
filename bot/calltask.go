@@ -8,7 +8,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/lnxjedi/gopherbot/robot"
@@ -69,6 +71,56 @@ type taskReturn struct {
 	retval    robot.TaskRetVal
 }
 
+// Incrementing tid for individual tasks that run, so Go Robots
+// can look up the *worker when needed.
+var taskID = struct {
+	idx int
+	sync.Mutex
+}{
+	0,
+	sync.Mutex{},
+}
+
+// Get the next context ID
+func getTaskID() int {
+	contextID.Lock()
+	contextID.idx++
+	if contextID.idx == 0 {
+		contextID.idx = 1
+	}
+	ctxid := contextID.idx
+	contextID.Unlock()
+	return ctxid
+}
+
+// Maps populated by callTaskThread, so external tasks can get their Robot
+// from the eid (GOPHER_CALLER_ID), and Go tasks can get a handle to the
+// *worker from an incrementing tid (task id).
+var taskLookup = struct {
+	e map[string]Robot
+	i map[int]*worker
+	sync.RWMutex
+}{
+	make(map[string]Robot),
+	make(map[int]*worker),
+	sync.RWMutex{},
+}
+
+// funtion for active Go Robots to look up the *worker, always locked
+// before returning.
+func getLockedWorker(idx int) *worker {
+	taskLookup.Lock()
+	w, ok := taskLookup.i[idx]
+	taskLookup.Unlock()
+	if !ok {
+		_, file, line, _ := runtime.Caller(2)
+		Log(robot.Error, "Illegal call to getLockedWorker for inactive worker in '%s', line '%s'", file, line)
+		return nil
+	}
+	w.Lock()
+	return w
+}
+
 // callTask does the work of running a job, task or plugin with a command and arguments.
 func (w *worker) callTask(t interface{}, command string, args ...string) (errString string, retval robot.TaskRetVal) {
 	rc := make(chan taskReturn)
@@ -87,6 +139,7 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 	w.currentTask = t
 	logger := w.logger
 	workdir := w.workingDirectory
+	eid := w.eid
 	privileged := w.privileged
 	w.taskName = task.name
 	w.taskDesc = task.Description
@@ -136,6 +189,17 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 	envhash := w.getEnvironment(task)
 	r.environment = envhash
 
+	// Task lookup; add lookup for http.go
+	tid := getTaskID()
+	taskLookup.Lock()
+	taskLookup.e[eid] = r
+	taskLookup.i[tid] = w
+	taskLookup.Unlock()
+	defer func() {
+		taskLookup.Lock()
+		delete(taskLookup.e, eid)
+		taskLookup.Unlock()
+	}()
 	if isPlugin && plugin.taskType == taskGo {
 		if command != "init" {
 			emit(GoPluginRan)
@@ -155,15 +219,9 @@ func (w *worker) callTaskThread(rchan chan<- taskReturn, t interface{}, command 
 		rchan <- taskReturn{"", ret}
 		return
 	}
-	// External task; add lookup for http.go
-	externalLookup.Lock()
-	externalLookup.m[r.eid] = r
-	externalLookup.Unlock()
-	defer func() {
-		externalLookup.Lock()
-		delete(externalLookup.m, r.eid)
-		externalLookup.Unlock()
-	}()
+	taskLookup.Lock()
+	delete(taskLookup.i, tid)
+	taskLookup.Unlock()
 
 	var taskPath string // full path to the executable
 	var err error

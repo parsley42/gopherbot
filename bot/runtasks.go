@@ -188,27 +188,38 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	w.registerActive(parent)
 
 	var errString string
-	ret, errString = w.runPipeline(ptype, true)
+	ret, errString = w.runPipeline(primaryTasks, ptype, true)
+	// Once a pipeline runs we need to start taking locks on the worker
+	w.Lock()
 	// Close the log so final / fail tasks could potentially send log emails / links
 	if c.logger != nil {
 		c.logger.Section("done", "primary pipeline has completed")
 		c.logger.Close()
 	}
+	numFailTasks := len(w.failTasks)
+	numFinalTasks := len(w.finalTasks)
+	w.Unlock()
 	// Run final and fail (cleanup) tasks
 	if ret != robot.Normal {
-		if len(c.failTasks) > 0 {
-			c.Lock()
-			c.stage = failTasks
-			c.Unlock()
-			w.runPipeline(ptype, false)
+		if numFailTasks > 0 {
+			w.runPipeline(failTasks, ptype, false)
 		}
 	}
-	if len(c.finalTasks) > 0 {
-		c.Lock()
-		c.stage = finalTasks
-		c.Unlock()
-		w.runPipeline(ptype, false)
+	if numFinalTasks > 0 {
+		w.runPipeline(finalTasks, ptype, false)
 	}
+	w.deregister()
+	// Once deregistered, no Robot can get a pointer to the worker, and
+	// locking is no longer needed. Invalid calls to getLockedWorker()
+	// will log an error and return nil.
+
+	// nsExtension := c.nsExtension
+	// failedTaskDescription := c.failedTaskDescription
+	// jobName := c.pipeName
+	// runIndex := c.runIndex
+	// taskName := c.taskName
+	// exclusiveTag := c.exclusiveTag
+	// failedTask := c.failedTask
 	if ret != robot.Normal {
 		if !w.automaticTask && errString != "" {
 			w.makeRobot().Reply(errString)
@@ -234,7 +245,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 			}
 		}
 	}
-	w.deregister()
 	if c.exclusive {
 		tag := c.exclusiveTag
 		runQueues.Lock()
@@ -264,10 +274,12 @@ const (
 	failTasks
 )
 
-func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
+func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
 	var p []TaskSpec
 	eventEmitted := false
-	switch w.stage {
+	w.Lock()
+	w.stage = stage
+	switch stage {
 	case primaryTasks:
 		p = w.nextTasks
 		w.nextTasks = []TaskSpec{}
@@ -276,6 +288,7 @@ func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.Tas
 	case failTasks:
 		p = w.failTasks
 	}
+	w.Unlock()
 
 	l := len(p)
 	for i := 0; i < l; i++ {
@@ -407,7 +420,7 @@ func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.Tas
 					p = append(p, w.nextTasks...)
 					l += t
 				} else {
-					ret, errString = w.runPipeline(ptype, false)
+					ret, errString = w.runPipeline(stage, ptype, false)
 				}
 				w.nextTasks = []TaskSpec{}
 				// the case where c.queueTask is true is handled right after
@@ -428,8 +441,8 @@ func (w *worker) runPipeline(ptype pipelineType, initialRun bool) (ret robot.Tas
 
 func (w *worker) getEnvironment(task *Task) map[string]string {
 	c := w.pipeContext
-	c.Lock()
-	defer c.Unlock()
+	w.Lock()
+	defer w.Unlock()
 	envhash := make(map[string]string)
 	if len(c.environment) > 0 {
 		for k, v := range c.environment {

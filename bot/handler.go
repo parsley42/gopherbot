@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/lnxjedi/gopherbot/robot"
 )
@@ -71,6 +72,7 @@ type worker struct {
 	msg             string                      // the message text sent
 	automaticTask   bool                        // set for scheduled & triggers jobs, where user security restrictions don't apply
 	*pipeContext                                // pointer to the pipeline context, created in
+	sync.Mutex                                  // Lock to protect the bot context when pipeline running
 }
 
 // clone a worker for a new execution context
@@ -145,6 +147,7 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 	} else {
 		userName = bracket(inc.UserID)
 	}
+	protocol, _ := getProtocol(inc.Protocol)
 
 	messageFull := inc.MessageText
 
@@ -165,7 +168,7 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 
 	for _, user := range ignoreUsers {
 		if strings.EqualFold(userName, user) {
-			Log(robot.Debug, "Ignoring user", userName)
+			Log(robot.Debug, ": %s", userName)
 			emit(IgnoredUser)
 			return
 		}
@@ -214,6 +217,7 @@ func (h handler) IncomingMessage(inc *robot.ConnectorMessage) {
 		Channel:         channelName,
 		ProtocolUser:    ProtocolUser,
 		ProtocolChannel: ProtocolChannel,
+		Protocol:        protocol,
 		Incoming:        inc,
 		Format:          cfg.defaultMessageFormat,
 		tasks:           t,

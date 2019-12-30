@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lnxjedi/gopherbot/robot"
@@ -20,7 +19,7 @@ import (
 // callTask(...).
 type Robot struct {
 	*robot.Message
-	worker       *worker
+	wid          int                         // worker ID
 	pipeContext                              // snapshot copy of pipeline context
 	cfg          *configuration              // convenience only; r.cfg shorter than r.worker.cfg
 	tasks        *taskList                   // same
@@ -44,14 +43,15 @@ func (w *worker) makeRobot() Robot {
 			Protocol:        w.Protocol,
 			Incoming:        w.Incoming,
 		},
-		worker: w,
 		pipeContext: pipeContext{
-			jobInitialized: w.jobInitialized,
+			privileged:     w.privileged,
+			ptype:          w.ptype,
 			elevated:       w.elevated,
+			stage:          w.stage,
+			jobInitialized: w.jobInitialized,
 			currentTask:    w.currentTask,
 			nsExtension:    w.nsExtension,
 			exclusive:      w.exclusive,
-			eid:            w.eid,
 		},
 		cfg:          w.cfg,
 		tasks:        w.tasks,
@@ -59,15 +59,6 @@ func (w *worker) makeRobot() Robot {
 		repositories: w.repositories,
 	}
 	return r
-}
-
-// Map of eid to *worker for external tasks
-var externalLookup = struct {
-	m map[string]Robot
-	sync.RWMutex
-}{
-	make(map[string]Robot),
-	sync.RWMutex{},
 }
 
 // CheckAdmin returns true if the user is a configured administrator of the
@@ -101,8 +92,8 @@ func (r Robot) SetParameter(name, value string) bool {
 		return false
 	}
 	c := r.worker.pipeContext
-	c.Lock()
-	defer c.Unlock()
+	r.worker.Lock()
+	defer r.worker.Unlock()
 	c.environment[name] = value
 	return true
 }
@@ -120,8 +111,8 @@ func (r Robot) SetParameter(name, value string) bool {
 // See also: tasks/setworkdir.sh for updating working directory in a pipeline
 func (r Robot) SetWorkingDirectory(path string) bool {
 	c := r.worker.pipeContext
-	c.Lock()
-	defer c.Unlock()
+	r.worker.Lock()
+	defer r.worker.Unlock()
 	if path == "." {
 		c.workingDirectory = c.baseDirectory
 		return true
@@ -173,9 +164,7 @@ func (r Robot) GetParameter(key string) string {
 // the elevator should always prompt for 2fa; otherwise a configured timeout
 // should apply.
 func (r Robot) Elevate(immediate bool) bool {
-	c := r.worker.pipeContext
-	defer c.Unlock()
-	task, _, _ := getTask(c.currentTask)
+	task, _, _ := getTask(r.currentTask)
 	retval := r.elevate(task, immediate)
 	if retval == robot.Success {
 		return true
