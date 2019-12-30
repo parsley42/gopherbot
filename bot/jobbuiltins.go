@@ -313,15 +313,19 @@ func (w *worker) jobSecurityCheck(t interface{}, command string) bool {
 		}
 	}
 	r := w.makeRobot()
+	w.registerWorker(r.tid)
 	if r.checkAuthorization(w, t, command) != robot.Success {
+		deregisterWorker(r.tid)
 		return false
 	}
 	if !w.elevated {
 		eret, _ := r.checkElevation(t, command)
 		if eret != robot.Success {
+			deregisterWorker(r.tid)
 			return false
 		}
 	}
+	deregisterWorker(r.tid)
 	return true
 }
 

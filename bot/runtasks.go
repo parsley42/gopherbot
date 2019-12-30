@@ -189,8 +189,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 
 	var errString string
 	ret, errString = w.runPipeline(primaryTasks, ptype, true)
-	// Once a pipeline runs we need to start taking locks on the worker
-	w.Lock()
 	// Close the log so final / fail tasks could potentially send log emails / links
 	if c.logger != nil {
 		c.logger.Section("done", "primary pipeline has completed")
@@ -198,7 +196,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	}
 	numFailTasks := len(w.failTasks)
 	numFinalTasks := len(w.finalTasks)
-	w.Unlock()
 	// Run final and fail (cleanup) tasks
 	if ret != robot.Normal {
 		if numFailTasks > 0 {
@@ -270,7 +267,6 @@ const (
 func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun bool) (ret robot.TaskRetVal, errString string) {
 	var p []TaskSpec
 	eventEmitted := false
-	w.Lock()
 	w.stage = stage
 	switch stage {
 	case primaryTasks:
@@ -281,7 +277,6 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 	case failTasks:
 		p = w.failTasks
 	}
-	w.Unlock()
 
 	l := len(p)
 	for i := 0; i < l; i++ {
@@ -307,27 +302,29 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 					}
 				}
 			}
+			w.registerWorker(r.tid)
 			if adminRequired {
 				if !r.CheckAdmin() {
 					r.Say("Sorry, '%s/%s' is only available to bot administrators", task.name, command)
 					ret = robot.Fail
+					deregisterWorker(r.tid)
 					break
 				}
 			}
 			if r.checkAuthorization(w, t, command, args...) != robot.Success {
 				ret = robot.Fail
+				deregisterWorker(r.tid)
 				break
 			}
 			if !w.elevated {
-				eret, required := r.checkElevation(t, command)
+				eret, _ := r.checkElevation(t, command)
 				if eret != robot.Success {
 					ret = robot.Fail
+					deregisterWorker(r.tid)
 					break
 				}
-				if required {
-					w.elevated = true
-				}
 			}
+			deregisterWorker(r.tid)
 		}
 
 		if initialRun && !eventEmitted {
@@ -434,8 +431,6 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 
 func (w *worker) getEnvironment(task *Task) map[string]string {
 	c := w.pipeContext
-	w.Lock()
-	defer w.Unlock()
 	envhash := make(map[string]string)
 	if len(c.environment) > 0 {
 		for k, v := range c.environment {

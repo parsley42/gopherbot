@@ -105,7 +105,7 @@ func deregisterWorker(tid int) {
 func getLockedWorker(idx int) *worker {
 	if idx == 0 { // illegal value
 		_, file, line, _ := runtime.Caller(1)
-		Log(robot.Error, "Illegal call to getLockedWorker with tid = 0 in '%s', line '%s'", file, line)
+		Log(robot.Error, "Illegal call to getLockedWorker with tid = 0 in '%s', line %d", file, line)
 		return nil
 	}
 	taskLookup.RLock()
@@ -113,7 +113,7 @@ func getLockedWorker(idx int) *worker {
 	taskLookup.RUnlock()
 	if !ok {
 		_, file, line, _ := runtime.Caller(2)
-		Log(robot.Error, "Illegal call to getLockedWorker for inactive worker in '%s', line '%s'", file, line)
+		Log(robot.Error, "Illegal call to getLockedWorker for inactive worker in '%s', line %d", file, line)
 		return nil
 	}
 	w.Lock()
