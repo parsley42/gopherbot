@@ -92,5 +92,7 @@ ExternalPlugins:
   "format":
     Path: plugins/samples/format.sh
 
+WorkSpace: workspace
+
 Brain: mem
 DefaultElevator: totp

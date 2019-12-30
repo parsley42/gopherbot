@@ -1,6 +1,7 @@
 # See conf/gopherbot.yaml.sample
 AdminContact: "David Parsley, <parsley@linuxjedi.org>"
 DefaultChannels: [ "general", "random" ]
+DefaultJobChannel: general
 JoinChannels: [ ]
 AdminUsers: [ "alice" ]
 Alias: ";"
@@ -89,9 +90,7 @@ ExternalPlugins:
   "hello2":
     Path: plugins/samples/hello2.sh
 
-WorkSpace: /tmp
-HistoryConfig:
-  Directory: /tmp
+WorkSpace: workspace
 
 Brain: mem
 DefaultElevator: totp

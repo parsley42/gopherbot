@@ -276,6 +276,9 @@ func initCrypt() bool {
 					return false
 				}
 				Log(robot.Info, "Successfully wrote new binary encryption key to '%s'", keyFile)
+				cryptKey.key = bk
+				cryptKey.initialized = true
+				encryptionInitialized = true
 				return true
 			}
 		}

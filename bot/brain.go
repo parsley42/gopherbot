@@ -297,7 +297,7 @@ func storeDatum(dkey string, datum *[]byte) robot.RetVal {
 		if !initialized {
 			// When re-keying, we store the 'real' key while uninitialized with a new key
 			if !(initializing && dkey == botEncryptionKey) {
-				Log(robot.Error, "storeDatum called for '%s' with encryptBrain true, but brain not initialized", key)
+				Log(robot.Error, "storeDatum called for '%s' with encryptBrain true, but encryption not initialized", key)
 				return robot.BrainFailed
 			}
 		}
