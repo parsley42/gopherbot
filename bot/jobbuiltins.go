@@ -393,7 +393,7 @@ func (w *worker) jobAvailable(taskName string) interface{} {
 	}
 	// If there's already a job initialized, this is a pipeline task for that
 	// job, and should be available regardless of channel.
-	if !w.jobInitialized && w.Channel != task.Channel {
+	if w.pipeContext != nil && !w.jobInitialized && w.Channel != task.Channel {
 		debugTask(task, fmt.Sprintf("not available in channel '%s'", task.Channel), false)
 		w.Say("Sorry, job '%s' isn't available in this channel, try '%s'", taskName, task.Channel)
 		return nil
