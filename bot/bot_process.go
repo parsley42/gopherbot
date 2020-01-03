@@ -167,8 +167,6 @@ func initBot(cpath, epath string, logger *log.Logger) {
 		Log(robot.Fatal, "Loading initial configuration: %v", err)
 	}
 
-	os.Unsetenv(keyEnv)
-
 	if cliOp {
 		if fileLog {
 			setLogLevel(robot.Debug)
