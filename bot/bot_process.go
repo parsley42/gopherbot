@@ -278,7 +278,6 @@ func initCrypt() bool {
 				return true
 			}
 		}
-		os.Unsetenv(keyEnv)
 	} else {
 		Log(robot.Warn, "GOPHER_ENCRYPTION_KEY not set in environment")
 	}
@@ -312,7 +311,7 @@ func run() {
 	go func(conn robot.Connector, sigBreak chan<- struct{}) {
 		raiseThreadPriv("connector loop")
 		conn.Run(stopConnector)
-		sigBreak <- struct{}{}
+		close(sigBreak)
 		state.RLock()
 		restart := state.restart
 		state.RUnlock()

@@ -4,6 +4,7 @@ RUN yum -y update && \
   yum -y install \
     git \
     jq \
+    make \
     openssh-clients \
     procps \
     tar \
@@ -37,13 +38,14 @@ RUN cd /usr/local && \
   chown ${username}:${groupname} ${HOME} && \
   chmod 0750 ${HOME} 
 
-COPY gopherbot-linux-amd64.tar.gz ${installdir}
+## For dev
+# ADD gopherbot-linux-amd64.tar.gz ${installdir}
+# RUN chown ${nonprivuser}:${groupname} ${installdir}/gopherbot/gopherbot && \
+#   chmod u+s ${installdir}/gopherbot/gopherbot
 
 RUN cd ${installdir} && \
-  tar xzvf gopherbot-linux-amd64.tar.gz
-#  curl -L https://github.com/lnxjedi/gopherbot/releases/download/${version}/gopherbot-linux-amd64.tar.gz | tar xzvf - && \
-
-RUN chown ${nonprivuser}:${groupname} ${installdir}/gopherbot/gopherbot && \
+  curl -L https://github.com/lnxjedi/gopherbot/releases/download/${version}/gopherbot-linux-amd64.tar.gz | tar xzvf - && \
+  chown ${nonprivuser}:${groupname} ${installdir}/gopherbot/gopherbot && \
   chmod u+s ${installdir}/gopherbot/gopherbot
 
 WORKDIR ${HOME}

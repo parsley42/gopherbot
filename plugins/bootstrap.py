@@ -54,22 +54,6 @@ if len(clone_url) == 0:
     bot.Log("Warn", "GOPHER_CUSTOM_REPOSITORY not set, not bootstrapping")
     exit(0)
 
-# Slightly ugly workaround for containers; environment doesn't
-# carry over on restart, so let the robot read from .env
-envfile = ".env"
-envvars = [ "GOPHER_CUSTOM_REPOSITORY", "GOPHER_CUSTOM_BRANCH", "GOPHER_ENCRYPTION_KEY",
-    "DEPLOY_KEY", "GOPHER_STATE_REPOSITORY", "GOPHER_STATE_BRANCH" ]
-try:
-    os.stat(envfile)
-except FileNotFoundError:
-    ef = open(envfile, "w+")
-    os.chmod(envfile, 0o600)
-    for writenv in envvars:
-        value=os.getenv(writenv)
-        if value and len(value) > 0:
-            ef.write("%s=%s\n" % (writenv, value))
-    ef.close()
-
 clone_branch = os.getenv("GOPHER_CUSTOM_BRANCH")
 
 if not clone_url.startswith("http"):

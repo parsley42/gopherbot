@@ -65,7 +65,6 @@ export DISPLAY=""
 eval `ssh-agent`
 
 # Add cleanup task
-FinalTask exec kill $SSH_AGENT_PID
 FinalTask exec ssh-agent -k
 
 if [ -n "$BOOTSTRAP" ]
