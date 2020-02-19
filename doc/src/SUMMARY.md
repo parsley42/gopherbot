@@ -17,6 +17,7 @@
     - [External Plugin Configuration](upgrade/External-Plugin.md)
     - [Custom Configuration Directory](upgrade/Custom-Dir.md)
     - [Early Encryption Initialization](upgrade/Encryption.md)
+    - [Long-Term Memories](upgrade/Memories.md)
 
 - [Initial Robot Configuration](RobotInstall.md)
     - [Requirements](botsetup/Requirements.md)
