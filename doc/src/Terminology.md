@@ -12,6 +12,7 @@ This section is most important for referring back to as you read the documentati
 * **default robot** - If you run Gopherbot with no custom configuration, you get *Floyd*, the default robot
 * **standard robot** - A standard robot is what you get from using `robot.skel` or running the `setup` plugin from the **default robot**; more generally, any robot that has the standard `robot.skel` configuration as it's base is still a **standard robot**
 * **GOPHER_HOME** - The top-level directory for a given robot; the **Gopherbot** binary (`/opt/gopherbot/gopherbot`) is run from this directory to start or interact with the robot
+* **bootstrapping** - A major goal of **Gopherbot** version 2 was first-class container support; when you start the `gopherbot` daemon in a container with a few environment variables, or in an empty directory with a suitable `.env` environment file, the **bootstrap** plugin will use a deploy key to pull your robot from a *git* repository and start it up - this process is called **bootstrapping your robot**
 * **plugin** (or **command plugin**) - A piece of code that provides new commands or code for authorization and/or elevation
 * **authorizer** - special plugin command used to determine whether a given user is authorized for a given command, normally checking some kind of group membership
 * **elevator** - special plugin command providing additional verification of user identity; this can be as simple as a totp token or [Duo](https://duo.com) two-factor, or as complex as prompting another user before allowing a command to proceed

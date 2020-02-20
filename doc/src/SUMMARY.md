@@ -28,6 +28,7 @@
 
 - [Deploying and Running Your Robot](RunRobot.md)
     - [CLI Operation](deploy/CLI.md)
+    - [Running with Systemd](deploy/systemd.md)
     - [Running in a Container](deploy/Container.md)
 
 - [Configuring Gopherbot](Configuration.md)
