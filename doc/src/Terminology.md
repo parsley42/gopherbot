@@ -6,7 +6,7 @@ This section is most important for referring back to as you read the documentati
 
 * **Gopherbot** - The installed software archive that comprises the **Gopherbot DevOps Chatbot** service daemon
 * **robot** - you'll see the term *robot* in several different contexts in the documentation with these several meanings:
-   * **robot** - A configured instance of **Gopherbot** available in your team chat; may also refer to the set of one or more git repositories comprising the robot
+   * **robot** - A configured instance of a running **Gopherbot** daemon, available in your team chat; normally associated with a *git* repository that holds all the configuration and extensions for the robot
    * **Robot** - The object passed to user plugins, jobs and tasks
    * **robot** - the **Go** library for loadable modules, i.e. `import github.com/lnxjedi/gopherbot/robot`
 * **default robot** - If you run Gopherbot with no custom configuration, you get *Floyd*, the default robot
