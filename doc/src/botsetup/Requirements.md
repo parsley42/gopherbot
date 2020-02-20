@@ -2,6 +2,7 @@
 
 To set up your robot you'll need:
 * Access to a Linux host with the **Gopherbot** software installed, or an environment where you can run and interact with the [official Gopherbot container image](https://hub.docker.com/repository/docker/lnxjedi/gopherbot)
+   * If you've signed up for an account on [Gitpod](https://gitpod.io) (free accounts available), you can set up a new robot with the online [Gopherbot Gitpod Demo](https://gitpod.io/#https://github.com/lnxjedi/gopherbot)
 * Credentials your robot can use to log in to your team chat; you can obtain a **Gopherbot**-compatible [Slack](https://slack.com) token here: https://\<team-name\>.slack.com/services/new/bot
 * The name of a channel where your robot will run jobs by default, e.g. `clu-jobs` or `floyd-jobs`
 * An empty *git* repository (public or private) to store your robot, normally *botname*-gopherbot; for example you can find **Clu** at [https://github.com/parsley42/clu-gopherbot](https://github.com/parsley42/clu-gopherbot)
@@ -17,7 +18,7 @@ The other requirements listed here are mainly items for consideration before set
 > * An unencrypted `deploy_rsa` read-only deploy key that can be used for deploying your robot to e.g. a container or new VM
 > * A default encrypted `robot_rsa` key which the robot will use for all other CI/CD and remote ssh jobs
 
-Additionally, you may want to take advantage of **Gopherbot**'s CI/CD funcationality or ability to run git-driven jobs, which can be scheduled and/or on-demand; for example, **Floyd** updates the `gh-pages` branch of [lnxjedi/gopherbot](https://github.com/lnxjedi/gopherbot) and also the [gopherbot-docker](https://github.com/lnxjedi) repository after a successful build, to update documentation and container builds (see [.gopherci/pipeline.sh](https://github.com/lnxjedi/gopherbot/blob/master/.gopherci/pipeline.sh)). It's worth considering how you'll set up your robot to access *git* repositories.
+Additionally, you may want to take advantage of **Gopherbot**'s CI/CD funcationality or ability to run git-driven jobs, which can be scheduled and/or on-demand; for example, **Floyd** updates the `gh-pages` branch of [lnxjedi/gopherbot](https://github.com/lnxjedi/gopherbot) and also the [gopherbot-docker](https://github.com/lnxjedi) repository after a successful build - see [gopherbot/.gopherci/pipeline.sh](https://github.com/lnxjedi/gopherbot/blob/master/.gopherci/pipeline.sh). It's worth considering how you'll set up your robot to access *git* repositories.
 
 ### Machine Users
 It's a good idea to create a machine account for your robot with the *git* service of your choice. Both [Floyd](https://github.com/floyd42) and [Clu](https://github.com/clu49) have machine accounts and belong to the [lnxjedi](https://github.com/lnxjedi) organization on [Github](https://github.com). Having an organization and adding robots to teams makes it easy to provide flexible read/write access to repositories without having to jump through repository collaborator hoops.
