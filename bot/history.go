@@ -41,30 +41,85 @@ type pipeHistory struct {
 // start a new history log and manage memories
 /*
 Args:
-- tag: pipeline name or job:extended_namespace
+- tag: pipeline name or job:extended_namespace; newHistory prepends histPrefix
 - eid: 8 random hex digits generated in registerActive, for lookups
-
+- wid: w.id, fallback index when memory fails
+- keep: how many of this log to keep
+Returns:
+- logger: always a history logger, even if it's memory fallback
+- url: URL for the log if available
+- ref: 8 hex digit reference for e.g. "email|view log abcdef01"
+- idx: the run index, or wid fallback - can always be used for tail-log, mail-log in pipeline
 */
-func newHistory(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url string, idx int, err error) {
-	var start time.Time
-	currentCfg.RLock()
-	tz := currentCfg.timeZone
-	currentCfg.RUnlock()
-	if tz != nil {
-		start = time.Now().In(tz)
+func newLogger(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url, ref string, idx int) {
+	var ph pipeHistory
+	// Check out the memory for this specific history
+	key := histPrefix + tag
+	phtok, _, phret := checkoutDatum(key, &ph, true)
+	if phret != robot.Ok {
+		Log(robot.Error, "Checking out '%s', no history will be remembered for this pipeline", tag)
+		idx = wid
+		keep = 0
 	} else {
-		start = time.Now()
+		idx = ph.NextIndex
+		ph.NextIndex++
+		// Check out the memory mapping Ref's to logs
+		hm := make(map[string]historyLookup)
+		hmtok, _, hmret := checkoutDatum(histLookup, &hm, true)
+		if hmret == robot.Ok {
+			ref = eid
+			hl := historyLookup{tag, idx}
+			hm[ref] = hl
+		} else {
+			Log(robot.Error, "Checking out '%s' failed for '%s', no lookups will be available for this log", histLookup, tag)
+		}
+		var start time.Time
+		currentCfg.RLock()
+		tz := currentCfg.timeZone
+		currentCfg.RUnlock()
+		if tz != nil {
+			start = time.Now().In(tz)
+		} else {
+			start = time.Now()
+		}
+		hist := historyLog{
+			LogIndex:   idx,
+			Ref:        ref,
+			CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
+		}
+		ph.Histories = append(ph.Histories, hist)
+		var remove []historyLog
+		l := len(ph.Histories)
+		if l > keep {
+			remove = ph.Histories[0 : l-keep]
+			ph.Histories = ph.Histories[l-keep:]
+		}
+		mret := updateDatum(key, phtok, ph)
+		if mret != robot.Ok {
+			Log(robot.Error, "Updating '%s', no history will be remembered for the pipeline", tag)
+			idx = wid
+			keep = 0
+		} else if hmret == robot.Ok {
+			for _, rm := range remove {
+				delete(hm, rm.Ref)
+			}
+			mret := updateDatum(histLookup, hmtok, hm)
+			if mret != robot.Ok {
+				Log(robot.Error, "Updating '%s' failed for '%s', no lookups will be available for this log", histLookup, tag)
+			}
+		}
 	}
-	// checkout memories and figure out idx
-	// TODO: generate idx before using it !!!
-	hist := historyLog{
-		LogIndex:   idx,
-		Ref:        eid,
-		CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
-	}
-
-	if keep > 0 {
-		url, _ = interfaces.history.GetLogURL(tag, idx)
+	var err error
+	logger, err = interfaces.history.NewLog(tag, idx, keep)
+	if err != nil {
+		Log(robot.Error, "Starting history for '%s' failed (%v) - falling back to memory log", tag, err)
+		idx = wid
+		ref = ""
+		logger, _ = memHistories.NewLog(tag, idx, 0)
+	} else {
+		if keep > 0 {
+			url, _ = interfaces.history.GetLogURL(tag, idx)
+		}
 	}
 	return
 }

@@ -132,6 +132,8 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		rememberRuns = job.HistoryLogs
 	}
 	key := histPrefix + c.pipeName
+	//TODO: use newHistory and remove other logic
+	//pipeLogger, logURL, logRef, idx := newLogger(c.pipeName, w.eid, w.id, rememberRuns)
 	tok, _, mret := checkoutDatum(key, &ph, true)
 	if mret != robot.Ok {
 		Log(robot.Error, "Checking out '%s', no history will be remembered for '%s'", key, c.pipeName)
