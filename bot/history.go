@@ -11,19 +11,62 @@ package bot
 
 import (
 	"log"
+	"time"
 
 	"github.com/lnxjedi/robot"
 )
 
+const histPrefix = "bot:histories:"
+
+// Memory that holds a Ref -> historyLookup record
+const histLookup = "bot:histories-lookup"
+
 type historyLog struct {
 	LogIndex   int
+	Ref        string // 6 hex digits from worker ID
 	CreateTime string
+}
+
+type historyLookup struct {
+	Tag   string
+	Index int
 }
 
 type pipeHistory struct {
 	NextIndex          int
 	Histories          []historyLog
 	ExtendedNamespaces []string
+}
+
+// start a new history log and manage memories
+/*
+Args:
+- tag: pipeline name or job:extended_namespace
+- eid: 8 random hex digits generated in registerActive, for lookups
+
+*/
+func newHistory(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url string, idx int, err error) {
+	var start time.Time
+	currentCfg.RLock()
+	tz := currentCfg.timeZone
+	currentCfg.RUnlock()
+	if tz != nil {
+		start = time.Now().In(tz)
+	} else {
+		start = time.Now()
+	}
+	// checkout memories and figure out idx
+	// TODO: generate idx before using it !!!
+	hist := historyLog{
+		LogIndex:   idx,
+		Ref:        eid,
+		CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
+	}
+
+	if keep > 0 {
+		url, _ = interfaces.history.GetLogURL(tag, idx)
+	}
+	return
 }
 
 // Map of registered history providers

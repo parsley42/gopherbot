@@ -58,8 +58,6 @@ const encryptedKeyFile = "binary-encrypted-key"
 const paramKey = "bot:parameters"
 const secretKey = "bot:secrets"
 
-const histPrefix = "bot:histories:"
-
 const shortTermDuration = 7 * time.Minute
 
 type memState int
