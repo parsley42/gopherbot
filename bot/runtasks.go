@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/lnxjedi/robot"
 )
@@ -126,51 +126,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		w.ProtocolChannel = ""
 	}
 	c.environment["GOPHER_PIPE_NAME"] = task.name
-	var ph pipeHistory
-	rememberRuns := 0
-	if isJob {
-		rememberRuns = job.HistoryLogs
-	}
-	key := histPrefix + c.pipeName
-	//TODO: use newHistory and remove other logic
-	//pipeLogger, logURL, logRef, idx := newLogger(c.pipeName, w.eid, w.id, rememberRuns)
-	tok, _, mret := checkoutDatum(key, &ph, true)
-	if mret != robot.Ok {
-		Log(robot.Error, "Checking out '%s', no history will be remembered for '%s'", key, c.pipeName)
-		c.runIndex = w.id
-	} else {
-		c.runIndex = ph.NextIndex
-		ph.NextIndex++
-	}
-	c.histName = c.pipeName
-	var start time.Time
-	hist := historyLog{
-		LogIndex:   c.runIndex,
-		CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
-	}
-	if mret == robot.Ok {
-		ph.Histories = append(ph.Histories, hist)
-		l := len(ph.Histories)
-		if l > rememberRuns {
-			ph.Histories = ph.Histories[l-rememberRuns:]
-		}
-		mret = updateDatum(key, tok, ph)
-		if mret != robot.Ok {
-			Log(robot.Error, "Updating '%s', no history will be remembered for '%s'", key, c.pipeName)
-		}
-	}
-	if c.timeZone != nil {
-		start = time.Now().In(c.timeZone)
-	} else {
-		start = time.Now()
-	}
-	c.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", c.runIndex)
-	pipeHistory, err := interfaces.history.NewLog(c.pipeName, hist.LogIndex, rememberRuns)
-	if err != nil {
-		Log(robot.Error, "Starting history for '%s' failed (%v) - falling back to memory log", c.pipeName, err)
-		pipeHistory, _ = memHistories.NewLog(c.pipeName, hist.LogIndex, 0)
-	}
-	c.logger = pipeHistory
 	if isJob && (!job.Quiet || c.verbose) {
 		r := w.makeRobot()
 		taskinfo := task.name
@@ -208,56 +163,95 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	// Once Active, we need to use the Mutex for access to some fields; see
 	// pipeContext/type pipeContext
 	w.registerActive(parent)
+	rememberRuns := 0
+	if isJob {
+		rememberRuns = job.HistoryLogs
+	}
+	w.Lock()
+	pipeHistory, link, ref, idx := newLogger(c.pipeName, w.eid, w.id, rememberRuns)
+	c.histName = c.pipeName
+	c.runIndex = idx
+	c.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", idx)
+	c.logger = pipeHistory
+	if rememberRuns > 0 {
+		if len(link) > 0 {
+			c.environment["GOPHER_LOG_LINK"] = link
+		}
+		if len(ref) > 0 {
+			c.environment["GOPHER_LOG_REF"] = ref
+		}
+	}
+	w.Unlock()
 
 	var errString string
 	ret, errString = w.runPipeline(primaryTasks, ptype, true)
-	// Close the log so final / fail tasks could potentially send log emails / links
-	if ret != robot.Normal && ret != robot.Success {
+	c.environment["GOPHER_FINAL_TASK"] = c.taskName
+	finalTask := c.taskName
+	c.environment["GOPHER_FINAL_TYPE"] = c.taskType
+	finalType := c.taskType
+	if c.taskType == "plugin" {
+		c.environment["GOPHER_FINAL_COMMAND"] = c.plugCommand
+	}
+	c.environment["GOPHER_FINAL_ARGS"] = strings.Join(c.taskArgs, " ")
+	c.environment["GOPHER_FINAL_DESC"] = c.taskDesc
+	finalDesc := c.taskDesc
+	if ret != robot.Normal {
 		c.section("failed", fmt.Sprintf("primary pipeline failed in task %s: %s (code: %d)", c.taskName, ret, ret))
+		fc := int64(ret)
+		c.environment["GOPHER_FAIL_CODE"] = strconv.FormatInt(fc, 10)
+		c.environment["GOPHER_FAIL_STR"] = ret.String()
 	} else {
 		c.section("done", "primary pipeline has completed")
 	}
+	// Close the log so final / fail tasks could potentially send log emails / links
 	c.logger.Close()
+
 	numFailTasks := len(w.failTasks)
+	// Add a default tail-log for simple jobs
+	if isJob && !job.Quiet && numFailTasks == 0 {
+		tailtask := w.tasks.getTaskByName("tail-log")
+		ts := TaskSpec{
+			Name:    "tail-log",
+			Command: "run",
+			task:    tailtask,
+		}
+		w.failTasks = append(w.failTasks, ts)
+		numFailTasks = 1
+	}
 	numFinalTasks := len(w.finalTasks)
-	// Run final and fail (cleanup) tasks
+	if numFinalTasks > 0 {
+		w.runPipeline(finalTasks, ptype, false)
+	}
 	if ret != robot.Normal {
 		if numFailTasks > 0 {
 			w.runPipeline(failTasks, ptype, false)
 		}
 	}
-	if numFinalTasks > 0 {
-		w.runPipeline(finalTasks, ptype, false)
-	}
 	// Release logs that shouldn't be saved
 	c.logger.Finalize()
-	w.deregister()
-	// Once deregistered, no Robot can get a pointer to the worker, and
-	// locking is no longer needed. Invalid calls to getLockedWorker()
-	// will log an error and return nil.
 
 	if ret != robot.Normal {
 		if !w.automaticTask && errString != "" {
 			w.Reply(errString)
 		}
 	}
-	if isJob && (!job.Quiet || ret != robot.Normal) {
+	if isJob && !job.Quiet {
 		r := w.makeRobot()
 		if ret == robot.Normal {
-			r.Say("Finished job '%s', run %d, final task '%s', status: %s", c.pipeName, c.runIndex, c.taskName, ret)
+			r.Say("Finished job '%s', run %d, final task '%s', status: normal", c.pipeName, c.runIndex, finalTask)
 		} else {
 			var td string
-			if len(c.failedTaskDescription) > 0 {
-				td = " - " + c.failedTaskDescription
+			if len(c.taskDesc) > 0 {
+				td = " - " + finalDesc
 			}
 			jobName := c.pipeName
 			if len(c.nsExtension) > 0 {
 				jobName += ":" + c.nsExtension
 			}
 			if ret == robot.PipelineAborted {
-				r.Say("Job '%s', run number %d aborted, job '%s' already in progress", jobName, c.runIndex, c.exclusiveTag)
+				r.Say("Job '%s', run number %d aborted, exclusive job '%s' already in progress", jobName, c.runIndex, c.exclusiveTag)
 			} else {
-				r.Say("Job '%s', run number %d failed in task: '%s'%s, exit code: %s", jobName, c.runIndex, c.failedTask, td, ret)
+				r.Say("Job '%s', run number %d failed in %s: '%s'%s, exit code: %d (%s)", jobName, c.runIndex, finalType, finalTask, td, int(ret), ret)
 			}
 		}
 	}
@@ -279,6 +273,10 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		}
 		runQueues.Unlock()
 	}
+	w.deregister()
+	// Once deregistered, no Robot can get a pointer to the worker, and
+	// locking is no longer needed. Invalid calls to getLockedWorker()
+	// will log an error and return nil.
 	return
 }
 
@@ -314,8 +312,21 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 		isJob := job != nil
 		isPlugin := plugin != nil
 
+		w.taskName = task.name
+		w.taskDesc = task.Description
+		w.plugCommand = ""
+		w.taskArgs = args
+		if isJob {
+			w.taskType = "job"
+		} else if isPlugin {
+			w.taskType = "plugin"
+			w.plugCommand = command
+		} else {
+			w.taskType = "task"
+		}
+
 		// Security checks for jobs & plugins
-		if (isJob || isPlugin) && !w.automaticTask && w.stage != finalTasks {
+		if (isJob || isPlugin) && !w.automaticTask {
 			r := w.makeRobot()
 			r.currentTask = t
 			task, plugin, _ := getTask(t)
@@ -381,15 +392,12 @@ func (w *worker) runPipeline(stage pipeStage, ptype pipelineType, initialRun boo
 			debugT(t, fmt.Sprintf("Running task with command '%s' and arguments: %v", command, args), false)
 			errString, ret = w.callTask(t, command, args...)
 			debugT(t, fmt.Sprintf("Task finished with return value: %s", ret), false)
-			if w.stage != finalTasks && ret != robot.Normal {
-				w.failedTask = task.name
-				if len(args) > 0 {
-					w.failedTask += " " + strings.Join(args, " ")
-				}
-				w.failedTaskDescription = task.Description
-			}
 		}
-		if w.stage != finalTasks && ret != robot.Normal {
+		if w.stage == finalTasks && ret != robot.Normal {
+			w.finalFailed = append(w.finalFailed, task.name)
+		}
+		// All tasks in final and fail pipelines always run
+		if w.stage != finalTasks && w.stage != failTasks && ret != robot.Normal {
 			// task / job in pipeline failed
 			break
 		}
