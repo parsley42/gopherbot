@@ -96,20 +96,29 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 	if jret != robot.Ok {
 		r.Log(robot.Error, "Problem checking out '%s', unable to record extended namespace '%s'", jk, ext)
 	} else {
-		xn := make(map[string]bool)
-		for _, v := range pjh.ExtendedNamespaces {
-			xn[v] = true
-		}
-		xn[ext] = true
-		pjh.ExtendedNamespaces = make([]string, len(xn))
-		i := 0
-		for k := range xn {
-			pjh.ExtendedNamespaces[i] = k
-			i++
-		}
-		ret := updateDatum(jk, jtok, pjh)
-		if ret != robot.Ok {
-			r.Log(robot.Error, "Problem updating '%s', unable to record extended namespace '%s'", jk, ext)
+		if len(pjh.ExtendedNamespaces) == 0 {
+			pjh.ExtendedNamespaces = []string{ext}
+			ret := updateDatum(jk, jtok, pjh)
+			if ret != robot.Ok {
+				r.Log(robot.Error, "Problem updating '%s', unable to record extended namespace '%s'", jk, ext)
+			}
+		} else {
+			found := false
+			for _, ns := range pjh.ExtendedNamespaces {
+				if ns == ext {
+					found = true
+					break
+				}
+			}
+			if !found {
+				pjh.ExtendedNamespaces = append(pjh.ExtendedNamespaces, ext)
+				ret := updateDatum(jk, jtok, pjh)
+				if ret != robot.Ok {
+					r.Log(robot.Error, "Problem updating '%s', unable to record extended namespace '%s'", jk, ext)
+				}
+			} else {
+				checkinDatum(jk, jtok)
+			}
 		}
 	}
 
