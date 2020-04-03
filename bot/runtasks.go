@@ -126,40 +126,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		w.ProtocolChannel = ""
 	}
 	c.environment["GOPHER_PIPE_NAME"] = task.name
-	if isJob && (!job.Quiet || c.verbose) {
-		r := w.makeRobot()
-		taskinfo := task.name
-		if len(args) > 0 {
-			taskinfo += " " + strings.Join(args, " ")
-		}
-		var link string
-		if interfaces.history != nil {
-			if url, ok := interfaces.history.GetLogURL(task.name, c.runIndex); ok {
-				link = fmt.Sprintf(" (link: %s)", url)
-			}
-		}
-		schannel := initChannel
-		if schannel == "" {
-			schannel = "(direct message)"
-		}
-		switch ptype {
-		case jobTrigger:
-			r.Say("Starting job '%s', run %d%s - triggered by app '%s' in channel '%s'", taskinfo, c.runIndex, link, w.User, schannel)
-		case jobCommand:
-			r.Say("Starting job '%s', run %d%s - requested by user '%s' in channel '%s'", taskinfo, c.runIndex, link, w.User, schannel)
-		case spawnedTask:
-			r.Say("Starting job '%s', run %d%s - spawned by pipeline '%s': %s", taskinfo, c.runIndex, link, ppipeName, ppipeDesc)
-		case scheduled:
-			r.Say("Starting scheduled job '%s', run %d%s", taskinfo, c.runIndex, link)
-		default:
-			r.Say("Starting job '%s', run %d%s", taskinfo, c.runIndex, link)
-		}
-		c.verbose = true
-	}
-
-	ts := TaskSpec{task.name, command, args, t}
-	c.nextTasks = []TaskSpec{ts}
-
 	// Once Active, we need to use the Mutex for access to some fields; see
 	// pipeContext/type pipeContext
 	w.registerActive(parent)
@@ -173,15 +139,49 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	c.runIndex = idx
 	c.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", idx)
 	c.logger = pipeHistory
+	var logref string
 	if rememberRuns > 0 {
-		if len(link) > 0 {
+		if len(link) > 0 && len(ref) > 0 {
 			c.environment["GOPHER_LOG_LINK"] = link
-		}
-		if len(ref) > 0 {
 			c.environment["GOPHER_LOG_REF"] = ref
+			logref = fmt.Sprintf(" (log %s; link %s)", ref, link)
+		} else if len(link) > 0 {
+			// TODO: this case should never happen; verify and remove?
+			c.environment["GOPHER_LOG_LINK"] = link
+			logref = fmt.Sprintf(" (link %s)", link)
+		} else if len(ref) > 0 {
+			c.environment["GOPHER_LOG_REF"] = ref
+			logref = fmt.Sprintf(" (log %s)", ref)
 		}
 	}
 	w.Unlock()
+	if isJob && (!job.Quiet || c.verbose) {
+		r := w.makeRobot()
+		taskinfo := task.name
+		if len(args) > 0 {
+			taskinfo += " " + strings.Join(args, " ")
+		}
+		schannel := initChannel
+		if schannel == "" {
+			schannel = "(direct message)"
+		}
+		switch ptype {
+		case jobTrigger:
+			r.Say("Starting job '%s', run %d%s - triggered by app '%s' in channel '%s'", taskinfo, c.runIndex, logref, w.User, schannel)
+		case jobCommand:
+			r.Say("Starting job '%s', run %d%s - requested by user '%s' in channel '%s'", taskinfo, c.runIndex, logref, w.User, schannel)
+		case spawnedTask:
+			r.Say("Starting job '%s', run %d%s - spawned by pipeline '%s': %s", taskinfo, c.runIndex, logref, ppipeName, ppipeDesc)
+		case scheduled:
+			r.Say("Starting scheduled job '%s', run %d%s", taskinfo, c.runIndex, logref)
+		default:
+			r.Say("Starting job '%s', run %d%s", taskinfo, c.runIndex, logref)
+		}
+		c.verbose = true
+	}
+
+	ts := TaskSpec{task.name, command, args, t}
+	c.nextTasks = []TaskSpec{ts}
 
 	var errString string
 	ret, errString = w.runPipeline(primaryTasks, ptype, true)
@@ -195,8 +195,29 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	c.environment["GOPHER_FINAL_ARGS"] = strings.Join(c.taskArgs, " ")
 	c.environment["GOPHER_FINAL_DESC"] = c.taskDesc
 	finalDesc := c.taskDesc
+	numFailTasks := len(w.failTasks)
 	if ret != robot.Normal {
-		c.section("failed", fmt.Sprintf("primary pipeline failed in task %s: %s (code: %d)", c.taskName, ret, ret))
+		msg := fmt.Sprintf("pipeline failed in task %s with exit code %d (%s); log excerpt:", c.taskName, ret, ret)
+		// Add a default tail-log for simple jobs
+		if isJob && !job.Quiet && numFailTasks == 0 {
+			tailtask := w.tasks.getTaskByName("tail-log")
+			sendtask := w.tasks.getTaskByName("send-message")
+			w.failTasks = []TaskSpec{
+				{
+					Name:      "send-message",
+					Command:   "run",
+					Arguments: []string{msg},
+					task:      sendtask,
+				},
+				{
+					Name:    "tail-log",
+					Command: "run",
+					task:    tailtask,
+				},
+			}
+			numFailTasks = 2
+		}
+		c.section("failed", msg)
 		fc := int64(ret)
 		c.environment["GOPHER_FAIL_CODE"] = strconv.FormatInt(fc, 10)
 		c.environment["GOPHER_FAIL_STR"] = ret.String()
@@ -206,18 +227,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	// Close the log so final / fail tasks could potentially send log emails / links
 	c.logger.Close()
 
-	numFailTasks := len(w.failTasks)
-	// Add a default tail-log for simple jobs
-	if isJob && !job.Quiet && numFailTasks == 0 {
-		tailtask := w.tasks.getTaskByName("tail-log")
-		ts := TaskSpec{
-			Name:    "tail-log",
-			Command: "run",
-			task:    tailtask,
-		}
-		w.failTasks = append(w.failTasks, ts)
-		numFailTasks = 1
-	}
 	numFinalTasks := len(w.finalTasks)
 	if numFinalTasks > 0 {
 		w.runPipeline(finalTasks, ptype, false)
@@ -230,7 +239,7 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	// Release logs that shouldn't be saved
 	c.logger.Finalize()
 
-	if ret != robot.Normal {
+	if isPlugin && ret != robot.Normal {
 		if !w.automaticTask && errString != "" {
 			w.Reply(errString)
 		}

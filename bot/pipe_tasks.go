@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/lnxjedi/robot"
 )
@@ -54,6 +55,22 @@ func logtail(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	tailReader, _ := tail.getReader()
 	buffer, _ := ioutil.ReadAll(tailReader)
 	r.Fixed().Say(string(buffer))
+	return
+}
+
+// sendmsg - task send-message just sends a message to the job/plugin channel
+// functionally equivalent to status/say (bash tasks)
+func sendmsg(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
+	r := m.GetMessage()
+	if len(args) == 0 {
+		m.Log(robot.Warn, "empty status message")
+		return
+	}
+	full := strings.Join(args, " ")
+	ret := m.Say(full)
+	if ret != robot.Ok {
+		m.Log(robot.Error, "Failed sending message '%s' in channel '%s', return code: %d (%s)", full, r.Channel, ret, ret)
+	}
 	return
 }
 
@@ -174,6 +191,7 @@ func init() {
 	RegisterTask("rotate-log", true, robot.TaskHandler{Handler: rotatelog})
 	RegisterTask("pause-brain", true, robot.TaskHandler{Handler: pause})
 	RegisterTask("resume-brain", true, robot.TaskHandler{Handler: resume})
+	RegisterTask("send-message", false, robot.TaskHandler{Handler: sendmsg})
 	RegisterTask("tail-log", false, robot.TaskHandler{Handler: logtail})
 	RegisterTask("email-log", true, robot.TaskHandler{Handler: logmail})
 }
