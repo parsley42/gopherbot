@@ -88,6 +88,7 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 	w.environment["GOPHER_REPOSITORY"] = repo
 	jobLogger := w.logger
 	wid := w.id
+	eid := w.eid
 	w.Unlock()
 
 	jk := histPrefix + r.jobName
@@ -131,7 +132,7 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		_, _, job := getTask(j)
 		nh = job.HistoryLogs
 	}
-	pipeHistory, link, ref, idx := newLogger(tag, r.eid, wid, nh)
+	pipeHistory, link, ref, idx := newLogger(tag, eid, wid, nh)
 	w.section("close log", fmt.Sprintf("Job '%s' extended namespace: '%s'; starting new log on next task", r.jobName, ext))
 	jobLogger.Close()
 	jobLogger.Finalize()
@@ -143,9 +144,13 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 	if nh > 0 {
 		if len(link) > 0 {
 			w.environment["GOPHER_LOG_LINK"] = link
+		} else {
+			delete(w.environment, "GOPHER_LOG_LINK")
 		}
 		if len(ref) > 0 {
 			w.environment["GOPHER_LOG_REF"] = ref
+		} else {
+			delete(w.environment, "GOPHER_LOG_REF")
 		}
 	}
 	// Question: should repository parameters override job parameters, but _not_

@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -72,25 +70,18 @@ func jobcommands(m robot.Robot, command string, args ...string) (retval robot.Ta
 	return
 }
 
-func emailhistory(r Robot, hp robot.HistoryProvider, user, address, spec string, run int) (retval robot.TaskRetVal) {
-	f, err := hp.GetLog(spec, run)
-	if err != nil {
-		Log(robot.Error, "Getting history %d for task '%s': %v", run, spec, err)
-		r.Say("History %d for '%s' not available", run, spec)
+func emailhistory(r Robot, user, address, spec string, run int) (retval robot.TaskRetVal) {
+	var buff []byte
+	retval, buff = getLogMail(spec, run)
+	if retval != robot.Normal {
+		r.Say("Log for '%s', run %d not available", spec, run)
 		return
 	}
-	lr := io.LimitReader(f, maxMailBody)
 	body := new(bytes.Buffer)
 	body.Write([]byte("<pre>\n"))
-	buff, rerr := ioutil.ReadAll(lr)
-	if rerr != nil {
-		r.Log(robot.Error, "Reading history #%d for '%s': %v", run, spec, rerr)
-		r.Reply("There was a problem reading the history, check with an administrator")
-		return
-	}
 	body.Write(buff)
 	body.Write([]byte("\n</pre>"))
-	subject := fmt.Sprintf("History for '%s', run %d", spec, run)
+	subject := fmt.Sprintf("Log for pipeline '%s', run %d", spec, run)
 	var ret robot.RetVal
 	if len(user) > 0 {
 		ret = r.EmailUser(user, subject, body, true)
@@ -107,8 +98,8 @@ func emailhistory(r Robot, hp robot.HistoryProvider, user, address, spec string,
 	return
 }
 
-func pagehistory(r Robot, hp robot.HistoryProvider, spec string, run int) (retval robot.TaskRetVal) {
-	f, err := hp.GetLog(spec, run)
+func pagehistory(r Robot, spec string, run int) (retval robot.TaskRetVal) {
+	f, err := interfaces.history.GetLog(spec, run)
 	if err != nil {
 		Log(robot.Error, "Getting history %d for task '%s': %v", run, spec, err)
 		r.Say("History %d for '%s' not available", run, spec)
@@ -174,7 +165,8 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 	w := getLockedWorker(r.tid)
 	w.Unlock()
 
-	var histType, latest, histSpec, index, user, address string
+	var histType, histRef, latest, histSpec, index, user, address string
+	var idx int
 
 	switch command {
 	case "history":
@@ -189,6 +181,39 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		index = args[2]
 		user = args[3]
 		address = args[4]
+	case "maillog":
+		histRef = args[0]
+		user = args[1]
+		address = args[2]
+	case "taillog", "linklog":
+		histRef = args[0]
+	}
+
+	if len(index) > 0 {
+		var err error
+		idx, err = strconv.Atoi(index)
+		if err != nil {
+			r.Say("Unable to convert '%s' to an index", index)
+			return
+		}
+	}
+
+	if len(histRef) > 0 {
+		lmap := make(map[string]historyLookup)
+		_, _, lret := checkoutDatum(histLookup, &lmap, false)
+		if lret != robot.Ok {
+			r.Say("There was a memory error looking up that log")
+			r.Log(robot.Error, "Looking up '%s': %s", histLookup, lret)
+			return
+		}
+		hl, ok := lmap[histRef]
+		if !ok {
+			r.Say("Log ref '%s' not found, possibly expired?", histRef)
+			r.Log(robot.Warn, "Log ref '%s' not found: %s", histRef)
+			return
+		}
+		histSpec = hl.Tag
+		idx = hl.Index
 	}
 
 	// boilerplate availability and security checking for job commands
@@ -203,12 +228,28 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 	vr := r.MessageFormat(robot.Variable)
 
 	switch command {
-	case "history", "mailhistory":
-		hp := interfaces.history
-		if hp == nil {
-			r.Reply("No history provider configured")
+	case "maillog":
+		return emailhistory(r, user, address, histSpec, idx)
+	case "taillog":
+		ret, buff := getLogTail(histSpec, idx)
+		if ret == robot.Normal {
+			r.Say("log excerpt for '%s', run %d:", histSpec, idx)
+			r.Fixed().Say(string(buff))
+		} else {
+			r.Say("Log for '%s', run %d not available", histSpec, idx)
+		}
+	case "linklog":
+		url, found := interfaces.history.GetLogURL(histSpec, idx)
+		if !found {
+			url, found = interfaces.history.MakeLogURL(histSpec, idx)
+		}
+		if !found {
+			r.Say("URL for '%s', run %d not available", histSpec, idx)
 			return
 		}
+		r.Say("Here you go: %s", url)
+	// TODO: deprecated commands, eventually remove
+	case "history", "mailhistory":
 		var jh pipeHistory
 		key := histPrefix + histSpec
 		_, _, ret := checkoutDatum(key, &jh, false)
@@ -277,21 +318,21 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		switch histType {
 		case "mail", "email":
 			if len(user) > 0 {
-				return emailhistory(r, hp, user, "", histSpec, idx)
+				return emailhistory(r, user, "", histSpec, idx)
 			} else if len(address) > 0 {
-				return emailhistory(r, hp, "", address, histSpec, idx)
+				return emailhistory(r, "", address, histSpec, idx)
 			} else {
-				return emailhistory(r, hp, "", "", histSpec, idx)
+				return emailhistory(r, "", "", histSpec, idx)
 			}
 		case "link":
-			if link, ok := hp.GetLogURL(histSpec, idx); ok {
+			if link, ok := interfaces.history.GetLogURL(histSpec, idx); ok {
 				r.Say("Here you go: %s", link)
 				return
 			}
 			r.Say("No link available")
 			return
 		default:
-			return pagehistory(r, hp, histSpec, idx)
+			return pagehistory(r, histSpec, idx)
 		}
 	}
 	return

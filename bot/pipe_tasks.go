@@ -1,11 +1,8 @@
 package bot
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/lnxjedi/robot"
@@ -32,29 +29,11 @@ func logtail(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	hist := w.histName
 	idx := w.runIndex
 	w.Unlock()
-	logReader, err := interfaces.history.GetLog(hist, idx)
-	if err != nil && interfaces.history == memHistories {
-		Log(robot.Error, "Failed getting log reader in tail-log for history %s, index: %d", hist, idx)
-		return robot.Fail
+	var buffer []byte
+	retval, buffer = getLogTail(hist, idx)
+	if retval == robot.Normal {
+		r.Fixed().Say(string(buffer))
 	}
-	if err != nil {
-		Log(robot.Debug, "Failed getting log reader in tail-log, checking for memlog fallback")
-		logReader, err = memHistories.GetLog(hist, idx)
-	}
-	if err != nil {
-		Log(robot.Error, "Failed memlog fallback retrieving %s:%d in tail-log")
-		return robot.MechanismFail
-	}
-	tail := newlineBuffer(2048, 512, "<... truncated...>")
-	scanner := bufio.NewScanner(logReader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		tail.writeLine(line)
-	}
-	tail.close()
-	tailReader, _ := tail.getReader()
-	buffer, _ := ioutil.ReadAll(tailReader)
-	r.Fixed().Say(string(buffer))
 	return
 }
 
@@ -74,8 +53,6 @@ func sendmsg(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	return
 }
 
-const maxMailBody = 10485760 // 10MB
-
 // logmail - task email-log; send the job log to one or more email
 // addresses.
 func logmail(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
@@ -88,27 +65,13 @@ func logmail(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	hist := w.histName
 	idx := w.runIndex
 	w.Unlock()
-	logReader, err := interfaces.history.GetLog(hist, idx)
-	if err != nil && interfaces.history == memHistories {
-		Log(robot.Error, "Failed getting log reader in tail-log for history %s, index: %d", hist, idx)
-		return robot.Fail
+	var buff []byte
+	retval, buff = getLogMail(hist, idx)
+	if retval != robot.Normal {
+		return
 	}
-	if err != nil {
-		Log(robot.Debug, "Failed getting log reader in tail-log, checking for memlog fallback")
-		logReader, err = memHistories.GetLog(hist, idx)
-	}
-	if err != nil {
-		Log(robot.Error, "Failed memlog fallback retrieving %s:%d in tail-log")
-		return robot.MechanismFail
-	}
-	lr := io.LimitReader(logReader, maxMailBody)
 	body := new(bytes.Buffer)
 	body.Write([]byte("<pre>\n"))
-	buff, rerr := ioutil.ReadAll(lr)
-	if rerr != nil {
-		r.Log(robot.Error, "Reading history #%d for '%s': %v", idx, hist, rerr)
-		return robot.MechanismFail
-	}
 	body.Write(buff)
 	body.Write([]byte("\n</pre>"))
 	subject := fmt.Sprintf("Log for pipeline '%s', run %d", hist, idx)

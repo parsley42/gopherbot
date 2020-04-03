@@ -64,42 +64,46 @@ func newLogger(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url,
 		idx = ph.NextIndex
 		ph.NextIndex++
 		// Check out the memory mapping Ref's to logs
-		hm := make(map[string]historyLookup)
-		hmtok, _, hmret := checkoutDatum(histLookup, &hm, true)
-		if hmret == robot.Ok {
-			ref = eid
-			hl := historyLookup{tag, idx}
-			hm[ref] = hl
-		} else {
-			Log(robot.Error, "Checking out '%s' failed for '%s', no lookups will be available for this log", histLookup, tag)
-		}
-		var start time.Time
-		currentCfg.RLock()
-		tz := currentCfg.timeZone
-		currentCfg.RUnlock()
-		if tz != nil {
-			start = time.Now().In(tz)
-		} else {
-			start = time.Now()
-		}
-		hist := historyLog{
-			LogIndex:   idx,
-			Ref:        ref,
-			CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
-		}
-		ph.Histories = append(ph.Histories, hist)
+		var hmtok string
+		var hmret robot.RetVal
 		var remove []historyLog
-		l := len(ph.Histories)
-		if l > keep {
-			remove = ph.Histories[0 : l-keep]
-			ph.Histories = ph.Histories[l-keep:]
+		hm := make(map[string]historyLookup)
+		if keep > 0 {
+			hmtok, _, hmret = checkoutDatum(histLookup, &hm, true)
+			if hmret == robot.Ok {
+				ref = eid
+				hl := historyLookup{tag, idx}
+				hm[ref] = hl
+			} else {
+				Log(robot.Error, "Checking out '%s' failed for '%s', no lookups will be available for this log", histLookup, tag)
+			}
+			var start time.Time
+			currentCfg.RLock()
+			tz := currentCfg.timeZone
+			currentCfg.RUnlock()
+			if tz != nil {
+				start = time.Now().In(tz)
+			} else {
+				start = time.Now()
+			}
+			hist := historyLog{
+				LogIndex:   idx,
+				Ref:        ref,
+				CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
+			}
+			ph.Histories = append(ph.Histories, hist)
+			l := len(ph.Histories)
+			if l > keep {
+				remove = ph.Histories[0 : l-keep]
+				ph.Histories = ph.Histories[l-keep:]
+			}
 		}
 		mret := updateDatum(key, phtok, ph)
 		if mret != robot.Ok {
 			Log(robot.Error, "Updating '%s', no history will be remembered for the pipeline", tag)
 			idx = wid
 			keep = 0
-		} else if hmret == robot.Ok {
+		} else if keep > 0 && hmret == robot.Ok {
 			for _, rm := range remove {
 				delete(hm, rm.Ref)
 			}
