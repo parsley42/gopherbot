@@ -2,11 +2,15 @@
 AllChannels: true
 AllowDirect: false
 Help:
-- Keywords: [ "history", "job", "mail", "email", "send", "log" ]
+- Keywords: [ "history", "job", "mail", "email", "send", "log", "logs" ]
   Helptext:
   - "(bot), email log <ref> (to (user foo|user@my.domain)) - email a log to the user given the log ref"
   - "(bot), tail log <ref> - view the end of a log given the log ref"
   - "(bot), link log <ref> - get a URL for a log"
+- Keywords: [ "list", "job", "jobs", "log", "logs", "history"]
+  Helptext: [ "(bot), job logs (job) - list logs, optionally for a given job" ]
+- Keywords: [ "list", "log", "logs", "history", "build", "builds" ]
+  Helptext: [ "(bot), build logs (<repo> (branch)) - list build logs, optionally matching a given repository / branch" ]
 CommandMatchers:
 - Command: history
   Regex: '(?i:(?:(e?mail|link) )?(?:(latest|last) )?history(?: ([A-Za-z][\w-:./]*))?(?: (\d+))?)'
@@ -20,6 +24,10 @@ CommandMatchers:
   Regex: '(?i:(?:tail|view|show) log ([A-Za-z0-9]+))'
 - Command: linklog
   Regex: '(?i:(?:link|get) log ([A-Za-z0-9]+))'
+- Command: joblogs
+  Regex: '(?i:job logs(?: ([A-Za-z][\w-]*))?)'
+- Command: buildlogs
+  Regex: '(?i:build logs(?: ([A-Za-z][\w-:./]*))?)'
 ReplyMatchers:
 - Label: paging
   Regex: '(?i:(c|n|q))'
