@@ -31,7 +31,7 @@ var workerID = struct {
 func getWorkerID() int {
 	workerID.Lock()
 	workerID.idx++
-	if workerID.idx == 0 {
+	if workerID.idx == maxIndex {
 		workerID.idx = 1
 	}
 	ctxid := workerID.idx

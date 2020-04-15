@@ -25,6 +25,7 @@ type historyLog struct {
 	LogIndex   int
 	Ref        string // 6 hex digits from worker ID
 	CreateTime string
+	Descriptor string // usually just the branch
 }
 
 type historyLookup struct {
@@ -43,6 +44,10 @@ type pipeHistory struct {
 Args:
 - tag: pipeline name or job:extended_namespace; newHistory prepends histPrefix
 - eid: 8 random hex digits generated in registerActive, for lookups
+- descriptor: usually the branch for a repo; differentiates logs for logs
+  aggregated with the same log tag, to prevent e.g. entirely separate log
+  histories for every feature branch of a build - currently only used
+  in ExtendNamespace
 - wid: w.id, fallback index when memory fails
 - keep: how many of this log to keep
 Returns:
@@ -51,8 +56,13 @@ Returns:
 - ref: 8 hex digit reference for e.g. "email|view log abcdef01"
 - idx: the run index, or wid fallback - can always be used for tail-log, mail-log in pipeline
 */
-func newLogger(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url, ref string, idx int) {
+func newLogger(tag, eid, descriptor string, wid, keep int) (logger robot.HistoryLogger, url, ref string, idx int) {
 	var ph pipeHistory
+	// limit the number of logs kept to 64 =< 4096/64 (back of napkin
+	// calculation for listing logs w/ max message size of 4096)
+	if keep > 64 {
+		keep = 64
+	}
 	// Check out the memory for this specific history
 	key := histPrefix + tag
 	phtok, _, phret := checkoutDatum(key, &ph, true)
@@ -63,6 +73,9 @@ func newLogger(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url,
 	} else {
 		idx = ph.NextIndex
 		ph.NextIndex++
+		if ph.NextIndex == maxIndex {
+			ph.NextIndex = 0
+		}
 		// Check out the memory mapping Ref's to logs
 		var hmtok string
 		var hmret robot.RetVal
@@ -89,7 +102,8 @@ func newLogger(tag, eid string, wid, keep int) (logger robot.HistoryLogger, url,
 			hist := historyLog{
 				LogIndex:   idx,
 				Ref:        ref,
-				CreateTime: start.Format("Mon Jan 2 15:04:05 MST 2006"),
+				Descriptor: descriptor,
+				CreateTime: start.Format("Jan 2 15:04:05"),
 			}
 			ph.Histories = append(ph.Histories, hist)
 			l := len(ph.Histories)

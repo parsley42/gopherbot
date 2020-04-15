@@ -12,7 +12,7 @@ import (
 
 const maxMailBody = 10485760 // 10MB
 const maxMailLine = 16384    // 16k lines
-const tailBody = 2048        // 2k total buffer
+const tailBody = 3072        // 3k total buffer
 const tailLine = 512         // max line length for tail
 
 func getLogTail(tag string, idx int) (ret robot.TaskRetVal, buff []byte) {
@@ -41,7 +41,7 @@ func getLogBuffer(tag, trunc string, idx, buffsize, linesize int) (ret robot.Tas
 		ret = robot.NotFound
 		return
 	}
-	tail := newLineBuffer(2048, 512, trunc)
+	tail := newLineBuffer(buffsize, linesize, trunc)
 	scanner := bufio.NewScanner(logReader)
 	for scanner.Scan() {
 		line := scanner.Text()

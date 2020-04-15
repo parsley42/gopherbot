@@ -162,10 +162,11 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		return
 	}
 	r := m.(Robot)
+	vr := r.MessageFormat(robot.Variable)
 	w := getLockedWorker(r.tid)
 	w.Unlock()
 
-	var histType, histRef, latest, histSpec, index, user, address string
+	var histType, histRef, latest, histSpec, jobName, buildSpec, branch, index, user, address string
 	var idx int
 
 	switch command {
@@ -187,6 +188,11 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		address = args[2]
 	case "taillog", "linklog":
 		histRef = args[0]
+	case "joblogs":
+		jobName = args[0]
+	case "buildlogs":
+		buildSpec = args[0]
+		branch = args[1]
 	}
 
 	if len(index) > 0 {
@@ -216,7 +222,54 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 		idx = hl.Index
 	}
 
-	// boilerplate availability and security checking for job commands
+	if len(buildSpec) > 0 {
+		found := false
+		var repospec robot.Repository
+		var reponame string
+		reponames := []string{}
+		for repo, spec := range r.repositories {
+			components := strings.Split(repo, "/")
+			if len(components) != 3 {
+				r.Log(robot.Warn, "Repository '%s' doesn't match <site>/<org>/<name>, skipping")
+				continue
+			}
+			org := components[1]
+			rname := components[2]
+			extname := strings.Join([]string{org, rname}, "/")
+			var compare string
+			switch len(strings.Split(buildSpec, "/")) {
+			case 1:
+				compare = rname
+			case 2:
+				compare = extname
+			case 3:
+				compare = repo
+			}
+			if buildSpec == compare {
+				found = true
+				repospec = spec
+				reponame = repo
+				reponames = append(reponames, reponame)
+			}
+		}
+		if !found {
+			r.Say("Repository matching '%s' not found", buildSpec)
+			return
+		}
+		if len(reponames) > 1 {
+			repos := strings.Join(reponames, ", ")
+			r.Say("Matched multiple repositories: %s", repos)
+			return
+		}
+		jobName = repospec.Type
+		histSpec = jobName + ":" + reponame
+	} else if len(jobName) > 0 {
+		histSpec = jobName
+	}
+
+	// boilerplate availability and security checking for job commands;
+	// note that both jobAvailable and jobSecurityCheck emit messages
+	// to the user if they fail
 	jname := strings.Split(histSpec, ":")[0]
 	t := w.jobAvailable(jname)
 	if t == nil {
@@ -225,7 +278,22 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 	if !w.jobSecurityCheck(t, command) {
 		return
 	}
-	vr := r.MessageFormat(robot.Variable)
+
+	jh := pipeHistory{}
+	key := histPrefix + histSpec
+	_, _, ret := checkoutDatum(key, &jh, false)
+	if ret != robot.Ok {
+		r.Say("No logs found for '%s'", histSpec)
+		return
+	}
+	if len(jh.ExtendedNamespaces) > 0 {
+		r.Say("Job '%s' is a build job, use 'buildlogs' instead", jobName)
+		return
+	}
+	if len(jh.Histories) == 0 {
+		r.Say("No logs found for '%s'", histSpec)
+		return
+	}
 
 	switch command {
 	case "maillog":
@@ -248,6 +316,35 @@ func jobhistory(m robot.Robot, command string, args ...string) (retval robot.Tas
 			return
 		}
 		r.Say("Here you go: %s", url)
+	case "joblogs", "buildlogs":
+		var loglines []string
+		isBuild := command == "buildlogs"
+		checkBranch := len(branch) > 0
+		if !isBuild {
+			loglines = []string{fmt.Sprintf("Logs for job '%s':", jobName)}
+		} else if checkBranch {
+			loglines = []string{fmt.Sprintf("Build logs for '%s', branch '%s':", buildSpec, branch)}
+		} else {
+			loglines = []string{fmt.Sprintf("Build logs for '%s':", buildSpec)}
+		}
+		for _, log := range jh.Histories {
+			if checkBranch && branch != log.Descriptor {
+				continue
+			}
+			var logline string
+			if isBuild {
+				logline = fmt.Sprintf("%s - Run #%d, branch '%s', %s", log.Ref, log.LogIndex, log.Descriptor, log.CreateTime)
+			} else {
+				logline = fmt.Sprintf("%s - Run #%d, %s", log.Ref, log.LogIndex, log.CreateTime)
+			}
+			loglines = append(loglines, logline)
+		}
+		if checkBranch && len(loglines) == 1 {
+			r.Say("No build logs found for '%s', '%s' branch", buildSpec, branch)
+			return
+		}
+		r.Say(strings.Join(loglines, "\n"))
+		return
 	// TODO: deprecated commands, eventually remove
 	case "history", "mailhistory":
 		var jh pipeHistory
@@ -419,7 +516,7 @@ func (r Robot) jobVisible(t interface{}, ignoreChannelRestrictions, disabledOk b
 func (w *worker) jobAvailable(taskName string) interface{} {
 	t := w.tasks.getTaskByName(taskName)
 	if t == nil {
-		w.Say("Sorry, I don't have a task named '%s' configured", taskName)
+		w.Say("Sorry, I couldn't find a job named '%s' configured", taskName)
 		return nil
 	}
 	task, _, job := getTask(t)

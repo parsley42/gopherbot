@@ -134,7 +134,7 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 		rememberRuns = job.HistoryLogs
 	}
 	w.Lock()
-	pipeHistory, link, ref, idx := newLogger(c.pipeName, w.eid, w.id, rememberRuns)
+	pipeHistory, link, ref, idx := newLogger(c.pipeName, w.eid, "", w.id, rememberRuns)
 	c.histName = c.pipeName
 	c.runIndex = idx
 	c.environment["GOPHER_RUN_INDEX"] = fmt.Sprintf("%d", idx)
@@ -197,7 +197,6 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 	finalDesc := c.taskDesc
 	numFailTasks := len(w.failTasks)
 	if ret != robot.Normal {
-		msg := fmt.Sprintf("pipeline failed in task %s with exit code %d (%s); log excerpt:", c.taskName, ret, ret)
 		// Add a default tail-log for simple jobs
 		if isJob && !job.Quiet && numFailTasks == 0 {
 			tailtask := w.tasks.getTaskByName("tail-log")
@@ -206,7 +205,7 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 				{
 					Name:      "send-message",
 					Command:   "run",
-					Arguments: []string{msg},
+					Arguments: []string{fmt.Sprintf("pipeline failed in task %s with exit code %d (%s); log excerpt:", c.taskName, ret, ret)},
 					task:      sendtask,
 				},
 				{
@@ -217,7 +216,7 @@ func (w *worker) startPipeline(parent *worker, t interface{}, ptype pipelineType
 			}
 			numFailTasks = 2
 		}
-		c.section("failed", msg)
+		c.section("failed", fmt.Sprintf("pipeline failed in task %s with exit code %d (%s)", c.taskName, ret, ret))
 		fc := int64(ret)
 		c.environment["GOPHER_FAIL_CODE"] = strconv.FormatInt(fc, 10)
 		c.environment["GOPHER_FAIL_STR"] = ret.String()

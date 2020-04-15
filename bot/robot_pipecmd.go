@@ -123,7 +123,7 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		}
 	}
 
-	tag := r.jobName + ":" + ext
+	tag := r.jobName + ":" + repo
 	var nh int
 	if histories != -1 {
 		nh = histories
@@ -132,7 +132,7 @@ func (r Robot) ExtendNamespace(ext string, histories int) bool {
 		_, _, job := getTask(j)
 		nh = job.HistoryLogs
 	}
-	pipeHistory, link, ref, idx := newLogger(tag, eid, wid, nh)
+	pipeHistory, link, ref, idx := newLogger(tag, eid, branch, wid, nh)
 	w.section("close log", fmt.Sprintf("Job '%s' extended namespace: '%s'; starting new log on next task", r.jobName, ext))
 	jobLogger.Close()
 	jobLogger.Finalize()
