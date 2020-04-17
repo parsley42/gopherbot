@@ -12,6 +12,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/lnxjedi/robot"
+	"golang.org/x/sys/unix"
 )
 
 // if help is more than tooLong lines long, send a private message
@@ -406,6 +407,32 @@ func admin(m robot.Robot, command string, args ...string) (retval robot.TaskRetV
 		activePipelines.Unlock()
 		sort.Sort(psl)
 		r.Fixed().Say(strings.Join(psl.pslines, "\n"))
+	case "kill":
+		wid := args[0]
+		widx, err := strconv.ParseInt(wid, 10, 0)
+		if err != nil {
+			r.Say("Couldn't convert '%s' to an int", wid)
+			return
+		}
+		activePipelines.Lock()
+		worker, ok := activePipelines.i[int(widx)]
+		activePipelines.Unlock()
+		if !ok {
+			r.Say("Pipeline %s not found", wid)
+			return
+		}
+		var pid int
+		worker.Lock()
+		if worker.osCmd != nil {
+			pid = worker.osCmd.Process.Pid
+		}
+		worker.Unlock()
+		if pid == 0 {
+			r.Say("No active process found for pipeline")
+			return
+		}
+		unix.Kill(-pid, unix.SIGKILL)
+		r.Say("Killed pid %d", pid)
 	case "debug":
 		tname := args[0]
 		if !identifierRe.MatchString(tname) {
