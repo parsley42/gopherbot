@@ -8,7 +8,6 @@ import (
 
 func pausenotifies(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	notifies := make(map[string][]string)
-	Log(robot.Debug, "DEBUG: Notifying users of paused jobs")
 	pausedJobs.Lock()
 	for job, user := range pausedJobs.jobs {
 		joblist, ok := notifies[user]
@@ -21,7 +20,6 @@ func pausenotifies(m robot.Robot, args ...string) (retval robot.TaskRetVal) {
 	}
 	pausedJobs.Unlock()
 	for user, jobs := range notifies {
-		Log(robot.Debug, "DEBUG: found paused jobs for user: %s", user)
 		ret := m.SendUserMessage(user, "Reminder, you have paused jobs: %s", strings.Join(jobs, ", "))
 		if ret != robot.Ok {
 			m.Log(robot.Error, "Failed sending reminder to user %s about paused jobs: %s", user, strings.Join(jobs, ", "))
