@@ -74,11 +74,12 @@ func runScheduledTask(t interface{}, ts TaskSpec, cfg *configuration, tasks *tas
 	protocol := currentCfg.protocol
 	currentCfg.RUnlock()
 	pausedJobs.Lock()
-	defer pausedJobs.Unlock()
 	if user, ok := pausedJobs.jobs[task.name]; ok {
 		Log(robot.Debug, "Skipping run of job '%s' paused by user '%s'", task.name, user)
+		pausedJobs.Unlock()
 		return
 	}
+	pausedJobs.Unlock()
 
 	// Create the pipeContext to carry state through the pipeline.
 	// startPipeline will take care of registerActive()
