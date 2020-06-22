@@ -1,0 +1,37 @@
+---
+apiVersion: 1.0.0
+metadata:
+  name: gopherbot
+attributes:
+  persistVolumes: 'false'
+projects:
+-
+  name: gopherbot
+  source:
+    type: git
+    location: https://github.com/lnxjedi/gopherbot.git
+  clonePath: gopherbot/
+components:
+-
+  type: chePlugin
+  id: ms-vscode/go/latest
+  alias: go-plugin
+  memoryLimit: 512Mi
+-
+  type: dockerimage
+  # this version is used in the plugin
+  image: docker.io/lnxjedi/gopherbot:latest
+  alias: gopherbot-cli
+  env:
+    - name: GOPATH
+      # replicate the GOPATH from the plugin
+      value: /go:$(CHE_PROJECTS_ROOT)
+    - name: GOCACHE
+      # replicate the GOCACHE from the plugin, even though the cache is not shared
+      # between the two
+      value: /tmp/.cache
+  endpoints:
+    - name: '8080/tcp'
+      port: 8080
+  memoryLimit: 512Mi
+  mountSources: true
