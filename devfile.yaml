@@ -20,8 +20,8 @@ components:
 -
   type: dockerimage
   # this version is used in the plugin
-  image: docker.io/lnxjedi/gopherbot:latest
-  alias: gopherbot-cli
+  image: quay.io/eclipse/che-golang-1.12:nightly
+  alias: go-cli
   env:
     - name: GOPATH
       # replicate the GOPATH from the plugin
